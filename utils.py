@@ -380,13 +380,29 @@ class VectorStoreLoader:
     def load(self):
         """Load vector store"""
         print(f"📂 Loading vector store from: {self.persist_directory}")
-        self.vectorstore = Chroma(
-            persist_directory=self.persist_directory,
-            embedding_function=self.embeddings
-        )
-        count = self.vectorstore._collection.count()
-        print(f"✓ Loaded {count} vectors")
-        return self.vectorstore
+        
+        # Import here to avoid issues
+        from langchain_chroma import Chroma as LangChainChroma
+        
+        try:
+            # Use langchain_chroma instead of langchain_community
+            self.vectorstore = LangChainChroma(
+                persist_directory=self.persist_directory,
+                embedding_function=self.embeddings
+            )
+            
+            # Count vectors safely
+            try:
+                count = self.vectorstore._collection.count()
+                print(f"✓ Loaded {count} vectors")
+            except:
+                print(f"✓ Vector store loaded successfully")
+                
+            return self.vectorstore
+            
+        except Exception as e:
+            print(f"❌ Error loading vector store: {str(e)}")
+            raise
 
 
 # ============================================================================
@@ -778,6 +794,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
