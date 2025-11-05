@@ -6,7 +6,7 @@ langchain==0.3.7
 langchain-openai==0.2.9
 langchain-community==0.3.7
 langchain-core==0.3.21
-langchain-chroma==0.1.4
+langchain-chroma==0.1.1
 langchain-text-splitters==0.3.2
 
 # OpenAI
@@ -42,6 +42,7 @@ matplotlib==3.9.2
 
 # Async support
 aiohttp==3.11.11
+
 
 
 
