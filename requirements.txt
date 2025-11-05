@@ -43,5 +43,4 @@ matplotlib==3.9.2
 # Async support
 aiohttp==3.11.11
 
-# Additional helper for Google Drive download
-gdown==5.2.0
+
