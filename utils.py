@@ -364,7 +364,7 @@ class LLMFactory:
             model=model,
             temperature=temperature,
             streaming=streaming,
-            openai_api_key=os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+            openai_api_key= st.secrets.get("OPENAI_API_KEY")
         )
 
 
@@ -377,7 +377,7 @@ class VectorStoreLoader:
     
     def __init__(self, persist_directory: str = "./vector_store"):
         self.persist_directory = persist_directory
-        self.embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY"))
+        aself.embeddings = OpenAIEmbeddings(openai_api_key=st.secrets.get("OPENAI_API_KEY"))
         self.vectorstore = None
     
     def load(self):
@@ -781,3 +781,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
