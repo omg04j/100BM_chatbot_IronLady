@@ -16,7 +16,8 @@ from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import time
 
-import streamlit as st
+from dotenv import load_dotenv
+
 # LangChain Core
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
@@ -31,6 +32,8 @@ from langchain_chroma import Chroma
 # ✅ NEW: Memory support
 from langchain.memory import ConversationBufferMemory
 
+
+load_dotenv()
 
 
 # ============================================================================
@@ -361,7 +364,7 @@ class LLMFactory:
             model=model,
             temperature=temperature,
             streaming=streaming,
-            openai_api_key= st.secrets.get("OPENAI_API_KEY")
+            openai_api_key=os.getenv("OPENAI_API_KEY")
         )
 
 
@@ -374,7 +377,7 @@ class VectorStoreLoader:
     
     def __init__(self, persist_directory: str = "./vector_store"):
         self.persist_directory = persist_directory
-        self.embeddings = OpenAIEmbeddings(openai_api_key=st.secrets.get("OPENAI_API_KEY"))
+        self.embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
         self.vectorstore = None
     
     def load(self):
@@ -776,9 +779,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
-
-
-
-
