@@ -16,7 +16,6 @@ from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import time
 
-from dotenv import load_dotenv
 
 # LangChain Core
 from langchain_core.prompts import ChatPromptTemplate
@@ -32,8 +31,6 @@ from langchain_chroma import Chroma
 # ✅ NEW: Memory support
 from langchain.memory import ConversationBufferMemory
 
-
-load_dotenv()
 
 
 # ============================================================================
@@ -781,4 +778,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
