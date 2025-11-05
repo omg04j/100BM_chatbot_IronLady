@@ -13,7 +13,7 @@ langchain-text-splitters==0.3.2
 openai==1.54.3
 
 # Vector Store & Embeddings (CRITICAL: These versions work together)
-chromadb==0.5.23
+chromadb==0.4.24
 tiktoken==0.8.0
 
 # Document Processing
@@ -42,5 +42,6 @@ matplotlib==3.9.2
 
 # Async support
 aiohttp==3.11.11
+
 
 
