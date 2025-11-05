@@ -374,7 +374,7 @@ class VectorStoreLoader:
     
     def __init__(self, persist_directory: str = "./vector_store"):
         self.persist_directory = persist_directory
-        aself.embeddings = OpenAIEmbeddings(openai_api_key=st.secrets.get("OPENAI_API_KEY"))
+        self.embeddings = OpenAIEmbeddings(openai_api_key=st.secrets.get("OPENAI_API_KEY"))
         self.vectorstore = None
     
     def load(self):
@@ -778,6 +778,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
