@@ -21,14 +21,12 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 from datetime import datetime
 
-from dotenv import load_dotenv
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-load_dotenv()
 
 
 # ============================================================================
@@ -593,14 +591,6 @@ class VectorStoreLoader:
 # ============================================================================
 
 def main():
-    """Main execution"""
-    
-    # Check API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("\n❌ Error: OPENAI_API_KEY not found!")
-        print("\nPlease create .env file with:")
-        print("   OPENAI_API_KEY=sk-your-key-here")
-        return
     
     # Create vector store
     creator = VectorStoreCreator(
@@ -615,4 +605,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
