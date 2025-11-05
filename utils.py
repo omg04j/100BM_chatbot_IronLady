@@ -378,21 +378,35 @@ class VectorStoreLoader:
         self.vectorstore = None
     
     def load(self):
-        """Load vector store - Compatible with ChromaDB 0.4.24"""
+        """Load vector store - Using PersistentClient to avoid proxies issue"""
         print(f"📂 Loading vector store from: {self.persist_directory}")
         
         try:
-            # For ChromaDB 0.4.x - use this simpler approach
+            import chromadb
+            
+            # ✅ Create client yourself - this avoids the proxies parameter
+            client = chromadb.PersistentClient(path=self.persist_directory)
+            
+            # Get the collection name (usually "langchain")
+            collections = client.list_collections()
+            if not collections:
+                raise ValueError("No collections found in vector store")
+            
+            collection_name = collections[0].name
+            print(f"✓ Found collection: {collection_name}")
+            
+            # Pass YOUR client to Chroma (not let Chroma create its own)
             self.vectorstore = Chroma(
-                persist_directory=self.persist_directory,
+                client=client,  # ✅ THIS IS THE KEY - pass your own client
+                collection_name=collection_name,
                 embedding_function=self.embeddings
             )
             
-            # Count vectors safely
+            # Count vectors
             try:
                 count = self.vectorstore._collection.count()
                 print(f"✓ Loaded {count} vectors")
-            except Exception:
+            except:
                 print(f"✓ Vector store loaded successfully")
                 
             return self.vectorstore
@@ -402,7 +416,7 @@ class VectorStoreLoader:
             import traceback
             traceback.print_exc()
             raise
-# ============================================================================
+#============================================================================
 # PROFILE-AWARE RAG SYSTEM WITH CONVERSATION MEMORY
 # ============================================================================
 
@@ -791,6 +805,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
