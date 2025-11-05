@@ -338,7 +338,7 @@ class VectorStoreCreator:
         # Setup embeddings
         if embedding_model == "openai":
             self.embeddings = OpenAIEmbeddings(
-                openai_api_key=os.getenv("OPENAI_API_KEY")
+                openai_api_key=os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
             )
         else:
             raise ValueError("Only OpenAI embeddings supported for best performance")
@@ -531,7 +531,7 @@ class VectorStoreLoader:
     def __init__(self, vector_store_path: str = "./vector_store"):
         self.vector_store_path = vector_store_path
         self.embeddings = OpenAIEmbeddings(
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            openai_api_key=os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
         )
         self.vector_store = None
     
@@ -613,4 +613,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
