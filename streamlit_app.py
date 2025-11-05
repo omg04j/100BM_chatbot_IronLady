@@ -314,7 +314,7 @@ def initialize_system():
         if not os.path.exists('.env'):
             return None, "No .env file found"
         
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
         if not api_key:
             return None, "OPENAI_API_KEY not found in .env file"
         
@@ -584,4 +584,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
