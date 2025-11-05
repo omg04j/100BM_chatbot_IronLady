@@ -378,41 +378,30 @@ class VectorStoreLoader:
         self.vectorstore = None
     
     def load(self):
-        """Load vector store"""
+        """Load vector store - Compatible with ChromaDB 0.4.24"""
         print(f"📂 Loading vector store from: {self.persist_directory}")
         
         try:
-            import chromadb
-            from chromadb.config import Settings
-            
-            # Create client settings WITHOUT proxies parameter
-            client_settings = Settings(
-                is_persistent=True,
-                persist_directory=self.persist_directory,
-                anonymized_telemetry=False
-            )
-            
-            # Use Chroma with explicit client_settings
+            # For ChromaDB 0.4.x - use this simpler approach
             self.vectorstore = Chroma(
                 persist_directory=self.persist_directory,
-                embedding_function=self.embeddings,
-                client_settings=client_settings
+                embedding_function=self.embeddings
             )
             
             # Count vectors safely
             try:
                 count = self.vectorstore._collection.count()
                 print(f"✓ Loaded {count} vectors")
-            except:
+            except Exception:
                 print(f"✓ Vector store loaded successfully")
                 
             return self.vectorstore
             
         except Exception as e:
             print(f"❌ Error loading vector store: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise
-
-
 # ============================================================================
 # PROFILE-AWARE RAG SYSTEM WITH CONVERSATION MEMORY
 # ============================================================================
@@ -802,6 +791,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
