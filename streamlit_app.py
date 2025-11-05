@@ -305,13 +305,28 @@ st.markdown(f"""
 # INITIALIZATION
 # ============================================================================
 
-@st.cache_resource
 def initialize_system():
-    """Initialize RAG system (cached)"""
-    try:        
-        api_key = st.secrets.get("OPENAI_API_KEY")      
-        # Initialize the ProfileAwareRAGSystem
+    """Initialize RAG system - one per session"""
+    
+    # Return existing system if already initialized for this session
+    if 'rag_system' in st.session_state:
+        return st.session_state.rag_system, None
+    
+    try:
+        # Get API key
+        api_key = st.secrets.get("OPENAI_API_KEY")
+        if not api_key:
+            api_key = os.getenv("OPENAI_API_KEY")
+        
+        if not api_key:
+            return None, "OPENAI_API_KEY not found in secrets or .env"
+        
+        # Initialize the ProfileAwareRAGSystem for THIS session
         rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
+        
+        # Store in session state (unique per browser tab/user)
+        st.session_state.rag_system = rag_system
+        
         return rag_system, None
         
     except FileNotFoundError as e:
@@ -577,5 +592,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
