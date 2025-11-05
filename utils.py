@@ -381,14 +381,22 @@ class VectorStoreLoader:
         """Load vector store"""
         print(f"📂 Loading vector store from: {self.persist_directory}")
         
-        # Import here to avoid issues
-        from langchain_chroma import Chroma as LangChainChroma
-        
         try:
-            # Use langchain_chroma instead of langchain_community
-            self.vectorstore = LangChainChroma(
+            import chromadb
+            from chromadb.config import Settings
+            
+            # Create client settings WITHOUT proxies parameter
+            client_settings = Settings(
+                is_persistent=True,
                 persist_directory=self.persist_directory,
-                embedding_function=self.embeddings
+                anonymized_telemetry=False
+            )
+            
+            # Use Chroma with explicit client_settings
+            self.vectorstore = Chroma(
+                persist_directory=self.persist_directory,
+                embedding_function=self.embeddings,
+                client_settings=client_settings
             )
             
             # Count vectors safely
@@ -794,6 +802,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
