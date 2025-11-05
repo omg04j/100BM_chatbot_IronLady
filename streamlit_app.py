@@ -48,7 +48,6 @@ except Exception as e:
     1. Check if utils.py has any self-imports (like `from utils import ...`)
     2. Make sure all dependencies are installed (langchain, openai, etc.)
     3. Check if there are any syntax errors in utils.py
-    4. Make sure .env file exists with OPENAI_API_KEY
     """)
     st.stop()
 
@@ -309,15 +308,8 @@ st.markdown(f"""
 @st.cache_resource
 def initialize_system():
     """Initialize RAG system (cached)"""
-    try:
-        # Check for .env and API key
-        if not os.path.exists('.env'):
-            return None, "No .env file found"
-        
-        api_key = st.secrets.get("OPENAI_API_KEY")
-        if not api_key:
-            return None, "OPENAI_API_KEY not found in .env file"
-        
+    try:        
+        api_key = st.secrets.get("OPENAI_API_KEY")      
         # Initialize the ProfileAwareRAGSystem
         rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
         return rag_system, None
@@ -381,7 +373,6 @@ def render_chat_widget():
         st.error(f"⚠️ System not available: {error}")
         st.info("""
         **Setup Instructions:**
-        1. Create a `.env` file in your project directory
         2. Add: `OPENAI_API_KEY=your-key-here`
         3. Make sure `vector_store` folder exists
         4. Run: `python vector_store.py` to create the vector store if needed
@@ -586,4 +577,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
