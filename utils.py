@@ -16,7 +16,8 @@ from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import time
 
-import streamlit as st
+from dotenv import load_dotenv
+
 # LangChain Core
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
@@ -32,6 +33,7 @@ from langchain_chroma import Chroma
 from langchain.memory import ConversationBufferMemory
 
 
+load_dotenv()
 
 
 # ============================================================================
@@ -362,7 +364,7 @@ class LLMFactory:
             model=model,
             temperature=temperature,
             streaming=streaming,
-            openai_api_key= st.secrets.get("OPENAI_API_KEY")
+            openai_api_key=os.getenv("OPENAI_API_KEY")
         )
 
 
@@ -375,49 +377,22 @@ class VectorStoreLoader:
     
     def __init__(self, persist_directory: str = "./vector_store"):
         self.persist_directory = persist_directory
-        self.embeddings = OpenAIEmbeddings(openai_api_key=st.secrets.get("OPENAI_API_KEY"))
+        self.embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
         self.vectorstore = None
     
     def load(self):
-        """Load vector store - Using PersistentClient to avoid proxies issue"""
+        """Load vector store"""
         print(f"📂 Loading vector store from: {self.persist_directory}")
-        
-        try:
-            import chromadb
-            
-            # ✅ Create client yourself - this avoids the proxies parameter
-            client = chromadb.PersistentClient(path=self.persist_directory)
-            
-            # Get the collection name (usually "langchain")
-            collections = client.list_collections()
-            if not collections:
-                raise ValueError("No collections found in vector store")
-            
-            collection_name = collections[0].name
-            print(f"✓ Found collection: {collection_name}")
-            
-            # Pass YOUR client to Chroma (not let Chroma create its own)
-            self.vectorstore = Chroma(
-                client=client,  # ✅ THIS IS THE KEY - pass your own client
-                collection_name=collection_name,
-                embedding_function=self.embeddings
-            )
-            
-            # Count vectors
-            try:
-                count = self.vectorstore._collection.count()
-                print(f"✓ Loaded {count} vectors")
-            except:
-                print(f"✓ Vector store loaded successfully")
-                
-            return self.vectorstore
-            
-        except Exception as e:
-            print(f"❌ Error loading vector store: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            raise
-#============================================================================
+        self.vectorstore = Chroma(
+            persist_directory=self.persist_directory,
+            embedding_function=self.embeddings
+        )
+        count = self.vectorstore._collection.count()
+        print(f"✓ Loaded {count} vectors")
+        return self.vectorstore
+
+
+# ============================================================================
 # PROFILE-AWARE RAG SYSTEM WITH CONVERSATION MEMORY
 # ============================================================================
 
@@ -804,14 +779,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
-
-
-
-
-
-
-
-
-
