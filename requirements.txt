@@ -1,48 +1,45 @@
 # Core dependencies
 python-dotenv==1.0.1
 
-# LangChain - Core ecosystem (tested stable versions)
-langchain==0.3.7
-langchain-openai==0.2.9
-langchain-community==0.3.7
-langchain-core==0.3.21
+# LangChain - ALL must be 0.1.x to work with langchain-chroma 0.1.1
+langchain==0.1.20
+langchain-openai==0.1.7
+langchain-community==0.0.38
+langchain-core==0.1.52
 langchain-chroma==0.1.1
-langchain-text-splitters==0.3.2
+langchain-text-splitters==0.0.1
 
 # OpenAI
-openai==1.54.3
+openai==1.30.5
 
-# Vector Store & Embeddings (CRITICAL: These versions work together)
+# Vector Store (CRITICAL: chromadb 0.4.24 works with langchain-chroma 0.1.1)
 chromadb==0.4.24
-tiktoken==0.8.0
+tiktoken==0.7.0
 
 # Document Processing
 docx2txt==0.8
-pypdf==5.1.0
+pypdf==4.2.0
 openpyxl==3.1.5
 python-pptx==1.0.2
 python-docx==1.1.2
 pyPDF2==3.0.1
-unstructured==0.16.9
+unstructured==0.13.7
 
-# Data Processing (compatible with each other and streamlit)
-pandas==2.2.3
+# Data Processing
+pandas==2.2.2
 numpy==1.26.4
 
-# Pydantic for structured outputs (compatible with OpenAI 1.54.3)
-pydantic==2.10.3
-pydantic-core==2.27.1
+# Pydantic (compatible with OpenAI 1.30.5)
+pydantic==2.7.4
+pydantic-core==2.18.4
 
-# Streamlit for web app
-streamlit==1.40.2
+# Streamlit
+streamlit==1.38.0
 
 # Visualization
-plotly==5.24.1
-matplotlib==3.9.2
+plotly==5.22.0
+matplotlib==3.9.0
 
-# Async support
-aiohttp==3.11.11
-
-
-
+# Async
+aiohttp==3.9.5
 
