@@ -1,46 +1,47 @@
 # Core dependencies
-python-dotenv
+python-dotenv==1.0.1
 
-# LangChain
-langchain==0.3.3 
-langchain-openai
-langchain-community==0.3.1
-langchain-core
-langchain-chroma
+# LangChain - Core ecosystem (tested stable versions)
+langchain==0.3.7
+langchain-openai==0.2.9
+langchain-community==0.3.7
+langchain-core==0.3.21
+langchain-chroma==0.1.4
+langchain-text-splitters==0.3.2
 
 # OpenAI
-openai
+openai==1.54.3
 
-# Vector Store & Embeddings
-chromadb
-# Tokenization
-tiktoken
+# Vector Store & Embeddings (CRITICAL: These versions work together)
+chromadb==0.5.23
+tiktoken==0.8.0
 
 # Document Processing
-docx2txt
-pypdf
-openpyxl
-python-pptx  # ✅ Use this — 0.5.2 is outdated and causes build errors on Windows
-python-docx
-docx
-pyPDF2
-unstructured
-# Data Processing
-pandas
-numpy
+docx2txt==0.8
+pypdf==5.1.0
+openpyxl==3.1.5
+python-pptx==1.0.2
+python-docx==1.1.2
+pyPDF2==3.0.1
+unstructured==0.16.9
 
-# Pydantic for structured outputs
-pydantic
-pydantic-core
+# Data Processing (compatible with each other and streamlit)
+pandas==2.2.3
+numpy==1.26.4
+
+# Pydantic for structured outputs (compatible with OpenAI 1.54.3)
+pydantic==2.10.3
+pydantic-core==2.27.1
 
 # Streamlit for web app
-streamlit     # ✅ Stable with latest numpy/pandas versions
+streamlit==1.40.2
 
 # Visualization
-plotly        # ✅ Compatible with streamlit 1.34
-matplotlib
+plotly==5.24.1
+matplotlib==3.9.2
 
 # Async support
-aiohttp
-asyncio        # Still fine, though asyncio is part of stdlib — can be removed if unnecessary
-langchain-text-splitters
+aiohttp==3.11.11
+
+# Additional helper for Google Drive download
+gdown==5.2.0
