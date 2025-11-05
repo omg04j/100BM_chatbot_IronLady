@@ -1,45 +1,44 @@
 # Core dependencies
-python-dotenv==1.0.1
+python-dotenv
 
-# LangChain - ALL must be 0.1.x to work with langchain-chroma 0.1.1
-langchain==0.1.20
-langchain-openai==0.1.7
-langchain-community==0.0.38
-langchain-core==0.1.52
-langchain-chroma==0.1.1
-langchain-text-splitters==0.0.1
+# LangChain
+langchain
+langchain-openai
+langchain-community
+langchain-core
+langchain-chroma
+langchain-text-splitters
 
 # OpenAI
-openai==1.30.5
+openai
 
-# Vector Store (CRITICAL: chromadb 0.4.24 works with langchain-chroma 0.1.1)
-chromadb==0.4.24
-tiktoken==0.7.0
+# Vector Store
+chromadb
+tiktoken
 
 # Document Processing
-docx2txt==0.8
-pypdf==4.2.0
-openpyxl==3.1.5
-python-pptx==1.0.2
-python-docx==1.1.2
-pyPDF2==3.0.1
-unstructured==0.13.7
+docx2txt
+pypdf
+openpyxl
+python-pptx
+python-docx
+pyPDF2
+unstructured
 
 # Data Processing
-pandas==2.2.2
-numpy==1.26.4
+pandas
+numpy
 
-# Pydantic (compatible with OpenAI 1.30.5)
-pydantic==2.7.4
-pydantic-core==2.18.4
+# Pydantic
+pydantic
+pydantic-core
 
 # Streamlit
-streamlit==1.38.0
+streamlit
 
 # Visualization
-plotly==5.22.0
-matplotlib==3.9.0
+plotly
+matplotlib
 
 # Async
-aiohttp==3.9.5
-
+aiohttp
