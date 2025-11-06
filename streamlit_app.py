@@ -496,7 +496,7 @@ def render_chat_widget():
             send_button = st.form_submit_button("↗️ Send", use_container_width=True)
         
         with col3:
-            clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
+            clear_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
         
         # Process input with STREAMING
         if send_button and user_input:
