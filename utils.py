@@ -520,7 +520,7 @@ class ProfileAwareRAGSystem:
                 # Get profile context
                 if profile_name == 'custom':
                     profile_context = f"""
-USER PROFILE DETECTED: {custom_prof.upper()}
+USER PROFILE DETECTED: {custom_prof.UPPER()}
 Profile Context: {self.profile_detector.get_profile_context(profile_name, custom_prof)}
 
 IMPORTANT: Personalize examples for this profession while keeping the core framework intact!
@@ -616,7 +616,11 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
             }
     
     def ask_stream(self, question: str, conversation_history: List[Dict] = None):
-        """Stream answer with profile personalization + conversation memory"""
+        """
+        Stream answer with profile personalization + conversation memory
+        
+        ✅ FIXED: Now properly accepts conversation_history parameter
+        """
         start_time = time.time()
         
         if conversation_history is None:
@@ -781,4 +785,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
