@@ -311,6 +311,13 @@ st.markdown(f"""
         color: #4CAF50;
         text-align: center;
     }}
+    
+    /* ✅ Compact Clear Memory button styling */
+    .stButton[data-testid="baseButton-secondary"] > button {{
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+        min-height: 2rem !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -323,7 +330,13 @@ st.markdown(f"""
 def initialize_system():
     """Initialize RAG system (cached) - NO conversation memory stored here"""
     try:
-        api_key = st.secrets["OPENAI_API_KEY"]
+        # Check for .env and API key
+        if not os.path.exists('.env'):
+            return None, "No .env file found"
+        
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return None, "OPENAI_API_KEY not found in .env file"
         
         # Initialize the ProfileAwareRAGSystem (stateless - no memory)
         rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
@@ -356,8 +369,7 @@ SUGGESTED_QUESTIONS = [
     "💊 I am a doctor, how can I apply 4T principles?",
     "👥 As an HR leader, what is the capability matrix?",
     "📋 How to create a board member persona?",
-    "💻 As a tech executive, what is the success story framework?",
-    "🗓️ What is my batch schedule?"
+    "⚡ What is 4T management?"
 ]
 
 
@@ -414,6 +426,14 @@ def render_chat_widget():
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # ✅ Clear Memory button in upper corner
+    col_header1, col_header2 = st.columns([5, 1])
+    with col_header2:
+        if st.button("🧠 Clear", key="clear_memory_top", help="Clear conversation memory"):
+            st.session_state.conversation_history = []
+            st.success("Memory cleared!", icon="🧠")
+            st.rerun()
     
     # ✅ Memory status indicator (if there's conversation history)
     if len(st.session_state.conversation_history) > 0:
@@ -480,9 +500,9 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row with Clear Memory option
+    # ✅ Button row without Memory button (moved to header)
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3, col4 = st.columns([6, 1.5, 1.5, 1.5])
+        col1, col2, col3 = st.columns([7, 1.5, 1.5])
         
         with col1:
             user_input = st.text_input(
@@ -498,10 +518,6 @@ def render_chat_widget():
         with col3:
             clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
         
-        with col4:
-            # ✅ NEW: Clear Memory button
-            clear_memory_button = st.form_submit_button("🧠 Memory", use_container_width=True)
-        
         # Process input with STREAMING
         if send_button and user_input:
             process_message(user_input, rag_system)
@@ -510,12 +526,6 @@ def render_chat_widget():
         # Clear chat only (keep memory)
         if clear_button:
             st.session_state.messages = []
-            st.rerun()
-        
-        # ✅ Clear memory only (keep chat visible but reset context)
-        if clear_memory_button:
-            st.session_state.conversation_history = []
-            st.success("🧠 Memory cleared! I won't remember previous conversations.")
             st.rerun()
     
     # Footer
@@ -622,4 +632,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
