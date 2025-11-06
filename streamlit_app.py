@@ -1,3 +1,11 @@
+"""
+🤖 Iron Lady Leadership Program - 100BM AI Assistant
+Simple Chat Widget for LMS Page with Streaming
+Embeddable chatbot interface - Real-time text generation
+✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
+✅ WITH CLEAR MEMORY BUTTON (in header corner)
+"""
+
 import streamlit as st
 from typing import List, Dict, Any
 from datetime import datetime
@@ -81,6 +89,7 @@ st.markdown(f"""
         display: flex;
         align-items: center;
         gap: 1rem;
+        margin-bottom: 1rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }}
     
@@ -201,18 +210,10 @@ st.markdown(f"""
         padding-bottom: 1rem;
     }}
     
-    /* === CRITICAL FIX: INPUT BOX STYLE AND CLIPPING === */
+    /* Compact form styling */
     .stTextInput > div > div > input {{
-        border-radius: 10px; 
+        border-radius: 20px;
         border: 2px solid #DC143C;
-        height: 3.0rem; 
-        padding: 0.7rem 1rem; 
-        font-size: 1rem; 
-        margin-bottom: 0.5rem; 
-        
-        /* THE PIXEL-PERFECT TWEAK */
-        margin-right: -10px; /* Pull the input field slightly to the right to fill the column gap */
-        width: calc(100% + 10px); /* Ensure it expands to cover the adjusted margin */
     }}
     
     .stTextInput > div > div > input:focus {{
@@ -220,76 +221,102 @@ st.markdown(f"""
         box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
     }}
     
-    /* Enhanced button styling for desired look */
+    /* Enhanced button styling */
     .stButton > button {{
-        border-radius: 10px; 
-        background: white; 
-        color: #DC143C; 
-        border: 1px solid #ccc; 
+        border-radius: 20px;
+        background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
+        color: white;
+        border: none;
         font-weight: bold;
-        padding: 0.5rem 0.25rem; 
-        font-size: 0.85rem; 
-        height: 3.5rem; 
-        line-height: 1; 
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
         transition: all 0.3s ease;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
-        margin-top: 0; 
-        display: flex;
-        flex-direction: column; 
-        align-items: center;
-        justify-content: center;
-        gap: 0.25rem; 
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
     }}
     
     .stButton > button:hover {{
-        background: #f8f8f8; 
-        border-color: #DC143C; 
-        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.2);
-        transform: translateY(-1px);
+        background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
+        box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
+        transform: translateY(-2px);
     }}
     
-    /* Specific styling for the 'Clear Memory' button */
-    #clear_memory_btn_second_row > button {{ 
-        background: white;
-        border: 1px solid #ccc;
+    .stButton > button:active {{
+        transform: translateY(0px);
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+    }}
+    
+    /* Streaming cursor animation */
+    @keyframes blink {{
+        0%, 50% {{ opacity: 1; }}
+        51%, 100% {{ opacity: 0; }}
+    }}
+    
+    .typing-cursor::after {{
+        content: '▌';
+        animation: blink 1s infinite;
+    }}
+    
+    /* Suggested questions styling */
+    .suggestions-section {{
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+        border-radius: 10px;
+        border: 2px solid #DC143C;
+    }}
+    
+    .suggestions-title {{
         color: #DC143C;
-        width: 100%;
-        height: 3.5rem;
-    }}
-
-    /* Target specific icons to remove default Streamlit button color tint */
-    .stButton > button > div:first-child {{
-        color: #DC143C !important;
-    }}
-    
-    /* Ensure no extra padding in columns for tight alignment */
-    /* This section is key for removing standard Streamlit spacing */
-    .stTextInput > div {{
-        padding-top: 0;
-        padding-bottom: 0;
-    }}
-    .stForm > div > div {{
-        padding-top: 0;
-        padding-bottom: 0;
-        margin-bottom: 0;
-    }}
-    .stForm > div {{
-        margin-bottom: 0;
+        font-weight: bold;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }}
     
-    /* Custom styling for the Clear Memory button icon */
-    .memory-icon {{
-        font-size: 1.5rem;
-        line-height: 1;
-        color: #E3526E; 
+    .feature-badge {{
+        display: inline-block;
+        background: rgba(220, 20, 60, 0.1);
+        border: 1px solid #DC143C;
+        color: #DC143C;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+        font-weight: 600;
     }}
     
+    /* ✅ Memory badge styling */
+    .memory-badge {{
+        display: inline-block;
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid #4CAF50;
+        color: #4CAF50;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+        font-weight: 600;
+    }}
+    
+    /* ✅ Memory status display */
+    .memory-status {{
+        background: rgba(76, 175, 80, 0.05);
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: #4CAF50;
+        text-align: center;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 
 # ============================================================================
-# INITIALIZATION (Unchanged)
+# INITIALIZATION
 # ============================================================================
 
 @st.cache_resource
@@ -322,7 +349,7 @@ def initialize_chat():
 
 
 # ============================================================================
-# SUGGESTED QUESTIONS (Unchanged)
+# SUGGESTED QUESTIONS
 # ============================================================================
 
 SUGGESTED_QUESTIONS = [
@@ -453,70 +480,41 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    
-    # ------------------------------------------------------------------
-    # ✅ ROW 1: Input, Send, Clear Chat (Inside form)
-    # ------------------------------------------------------------------
+    # ✅ Button row with Send and Clear Chat
     with st.form(key="chat_form", clear_on_submit=True):
-        # Columns to hold Input, Send, and Clear Chat
-        col1, col2, col3 = st.columns([6, 1.5, 1.5])
+        col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
         
         with col1:
-            # Input Field with correct placeholder and collapsed label
             user_input = st.text_input(
-                label="", # Empty label is required for placeholder-only look
+                "Message",
                 placeholder="Ask a question...",
-                label_visibility="collapsed", # Hides the label AND its space
-                key="user_input_field"
+                label_visibility="collapsed",
+                key="user_input"
             )
         
         with col2:
-            # Send Button
-            send_button = st.form_submit_button(
-                "↗️ Send", 
-                use_container_width=True,
-                key="send_btn_form"
-            )
+            send_button = st.form_submit_button("↗️ Send", use_container_width=True)
         
         with col3:
-            # Clear Chat Button
-            clear_chat_button = st.form_submit_button(
-                "🗑️ Clear Chat", 
-                use_container_width=True,
-                key="clear_chat_btn_form"
-            )
-            
-        # Process input/actions within the form
+            clear_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+        
+        # Process input with STREAMING
         if send_button and user_input:
             process_message(user_input, rag_system)
             st.rerun()
         
-        if clear_chat_button:
+        # Clear chat only (keep memory)
+        if clear_button:
             st.session_state.messages = []
             st.rerun()
-
-    # ------------------------------------------------------------------
-    # ✅ ROW 2: Clear Memory 
-    # ------------------------------------------------------------------
-    # Align the empty space with the Input field column (6), and the button with 
-    # the Send/Clear Chat columns combined (1.5 + 1.5 = 3).
-    col_mem_empty, col_mem_btn = st.columns([6, 3]) 
-
-    with col_mem_btn:
-        # Clear Memory Button 
-        clear_memory_clicked = st.button(
-            "🧠 Clear Memory", 
-            key="clear_memory_btn_second_row", 
-            use_container_width=True
-        )
-
-    # Handle Clear Memory action
-    if clear_memory_clicked:
-        st.session_state.conversation_history = []
-        st.session_state.messages = [] # Clear chat history too for clean start
-        st.rerun()
-
-
+    
+    # ✅ Clear Memory button below - aligned with Send and Clear Chat buttons
+    col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
+    with col_mem1:
+        if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
+            st.session_state.conversation_history = []
+            st.rerun()
+    
     # Footer
     st.markdown(
         '<div class="powered-by">Powered by OpenAI & LangChain</div>',
