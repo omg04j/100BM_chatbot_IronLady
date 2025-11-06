@@ -1,3 +1,5 @@
+[file name]: app.py
+[file content begin]
 """
 🤖 Iron Lady Leadership Program - 100BM AI Assistant
 Simple Chat Widget for LMS Page with Streaming
@@ -221,23 +223,25 @@ st.markdown(f"""
         box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
     }}
     
-    /* Enhanced button styling */
+    /* Enhanced button styling - COMPACT VERSION */
     .stButton > button {{
-        border-radius: 20px;
+        border-radius: 15px;
         background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
         color: white;
         border: none;
         font-weight: bold;
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+        height: 32px;
+        min-height: 32px;
     }}
     
     .stButton > button:hover {{
         background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
         box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
-        transform: translateY(-2px);
+        transform: translateY(-1px);
     }}
     
     .stButton > button:active {{
@@ -310,6 +314,17 @@ st.markdown(f"""
         font-size: 0.85rem;
         color: #4CAF50;
         text-align: center;
+    }}
+    
+    /* Compact button row alignment */
+    .compact-button-row {{
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }}
+    
+    .compact-button {{
+        flex: 1;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -480,7 +495,7 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row with Send and Clear Chat
+    # ✅ Compact button row layout - EXACTLY like the reference image
     with st.form(key="chat_form", clear_on_submit=True):
         col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
         
@@ -493,10 +508,10 @@ def render_chat_widget():
             )
         
         with col2:
-            send_button = st.form_submit_button("↗️ Send", use_container_width=True)
+            send_button = st.form_submit_button("Send", use_container_width=True)
         
         with col3:
-            clear_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+            clear_button = st.form_submit_button("Clear Chat", use_container_width=True)
         
         # Process input with STREAMING
         if send_button and user_input:
@@ -508,10 +523,10 @@ def render_chat_widget():
             st.session_state.messages = []
             st.rerun()
     
-    # ✅ Clear Memory button below - aligned with Send and Clear Chat buttons
+    # ✅ Clear Memory button below - perfectly aligned with Send and Clear Chat buttons
     col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
     with col_mem1:
-        if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
+        if st.button("Clear Memory", key="clear_memory_btn", use_container_width=True):
             st.session_state.conversation_history = []
             st.rerun()
     
@@ -619,3 +634,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+[file content end]
