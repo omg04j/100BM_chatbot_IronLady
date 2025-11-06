@@ -353,7 +353,7 @@ class LLMFactory:
     """Factory for creating LLM instances"""
     
     @staticmethod
-    def get_chat_llm(model: str = "gpt-4", temperature: float = 0.2, streaming: bool = True) -> ChatOpenAI:
+    def get_chat_llm(model: str = "gpt-4o", temperature: float = 0.2, streaming: bool = True) -> ChatOpenAI:
         """Get ChatOpenAI instance - slightly higher temp for personalization"""
         return ChatOpenAI(
             model=model,
@@ -775,5 +775,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
