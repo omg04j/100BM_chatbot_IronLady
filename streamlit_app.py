@@ -1,10 +1,3 @@
-"""
-🤖 Iron Lady Leadership Program - 100BM AI Assistant
-Simple Chat Widget for LMS Page with Streaming
-Embeddable chatbot interface - Real-time text generation
-✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
-✅ WITH CLEAR MEMORY BUTTON (in header corner)
-"""
 
 import streamlit as st
 from typing import List, Dict, Any
@@ -194,14 +187,6 @@ st.markdown(f"""
         font-size: 0.7rem;
         margin: 0.25rem 0.25rem 0 0;
         border: 1px solid #DC143C;
-    }}
-    
-    .powered-by {{
-        text-align: center;
-        font-size: 0.7rem;
-        color: #999;
-        margin-top: 0.5rem;
-        padding: 0.5rem 0;
     }}
     
     /* Hide extra Streamlit padding */
@@ -477,43 +462,51 @@ def render_chat_widget():
         process_message(user_input, rag_system)
         st.rerun()
     
-    # Input form with enhanced buttons
+    # --- START OF UPDATED INPUT/BUTTON LOGIC ---
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row with Send and Clear Chat
-    with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
+    # 1. Input form for text and "Send" button
+    with st.form(key="text_input_form", clear_on_submit=True):
+        # Columns for: Text Input (6.5) | Send Button (1.5) | Placeholder (3.0 for the next two buttons)
+        col_text, col_send, col_ph = st.columns([6.5, 1.5, 3]) 
         
-        with col1:
+        with col_text:
             user_input = st.text_input(
                 "Message",
                 placeholder="Ask a question...",
                 label_visibility="collapsed",
-                key="user_input"
+                key="user_input_final"
             )
         
-        with col2:
+        with col_send:
             send_button = st.form_submit_button("↗️ Send", use_container_width=True)
-        
-        with col3:
-            clear_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
-        
+            
         # Process input with STREAMING
         if send_button and user_input:
             process_message(user_input, rag_system)
             st.rerun()
-        
-        # Clear chat only (keep memory)
-        if clear_button:
+
+    # 2. Control button row (Clear Chat and Clear Memory)
+    # Use columns that align the buttons under the space left of the input field
+    # Columns: Empty Space (6.5) | Clear Chat (1.5) | Clear Memory (1.5)
+    col_empty1, col_clear_chat, col_clear_mem = st.columns([6.5, 1.5, 1.5]) 
+    
+    with col_clear_chat:
+        # Changed to a standard button outside the form for independent action
+        clear_chat_button = st.button("🗑️ Clear Chat", key="clear_chat_btn_final", use_container_width=True)
+        if clear_chat_button:
             st.session_state.messages = []
             st.rerun()
-    
-    # ✅ Clear Memory button below - aligned with Send and Clear Chat buttons
-    col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
-    with col_mem1:
-        if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
+
+    with col_clear_mem:
+        # ✅ Repositioned, horizontal Clear Memory button
+        clear_memory_button = st.button("🧠 Clear Memory", key="clear_memory_btn_final", use_container_width=True)
+        if clear_memory_button:
             st.session_state.conversation_history = []
+            st.session_state.messages = [] # Clear the displayed chat to show memory is reset
             st.rerun()
+            
+    # --- END OF UPDATED INPUT/BUTTON LOGIC ---
     
     # Footer
     st.markdown(
