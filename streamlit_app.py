@@ -206,6 +206,7 @@ st.markdown(f"""
     .stTextInput > div > div > input {{
         border-radius: 20px;
         border: 2px solid #DC143C;
+        height: 2.25rem; /* Make input box compact */
     }}
     
     .stTextInput > div > div > input:focus {{
@@ -213,25 +214,37 @@ st.markdown(f"""
         box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
     }}
     
-    /* Enhanced button styling - COMPACT VERSION */
+    /* Enhanced button styling */
     .stButton > button {{
-        border-radius: 15px;
+        border-radius: 20px;
         background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
         color: white;
         border: none;
         font-weight: bold;
-        padding: 0.3rem 0.8rem;
-        font-size: 0.8rem;
+        padding: 0.5rem 0.5rem; /* Compact padding */
+        font-size: 0.8rem; /* Compact font size */
+        height: 2.25rem; /* Match input height */
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
-        height: 32px;
-        min-height: 32px;
+        margin-top: 0; /* Remove default margin to align with input */
+    }}
+    
+    /* Specific styling for the 'Clear Memory' button to stand out */
+    #clear_memory_btn > button {{
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); /* Use a different, more 'memory' blue */
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+    }}
+
+    #clear_memory_btn > button:hover {{
+        background: linear-gradient(135deg, #0069d9 0%, #004085 100%);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
+        transform: translateY(-2px);
     }}
     
     .stButton > button:hover {{
         background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
         box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
     }}
     
     .stButton > button:active {{
@@ -305,17 +318,22 @@ st.markdown(f"""
         color: #4CAF50;
         text-align: center;
     }}
-    
-    /* Compact button row alignment */
-    .compact-button-row {{
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
+
+    /* Specific column adjustments for compact buttons */
+    /* Remove unnecessary padding around elements in columns */
+    .stTextInput > div {{
+        padding-top: 0;
+        padding-bottom: 0;
+    }}
+    .stForm > div > div {{
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }}
+    .stForm > div {{
+        margin-bottom: 0;
     }}
     
-    .compact-button {{
-        flex: 1;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -377,6 +395,8 @@ def render_suggestions():
         
         # Create clickable buttons for each suggestion
         for i, question in enumerate(SUGGESTED_QUESTIONS):
+            # Using st.button with use_container_width=True inside columns would be better if we wanted a row of them,
+            # but for a list, this is fine for now.
             if st.button(question, key=f"suggest_{i}", use_container_width=True):
                 # Set the question as if user typed it
                 st.session_state.pending_question = question.split(" ", 1)[1]  # Remove emoji
@@ -485,40 +505,56 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Compact button row layout - EXACTLY like the reference image
+    # ✅ COMPACT BUTTON ROW: Input, Send, Clear Chat, and Clear Memory
+    
+    # To place all three buttons on the same line as the input, we must put 
+    # all four elements into the same Streamlit form using columns.
+    
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
+        # Adjusted column ratios for a more compact look: Input is 5, buttons are 1.5 each
+        col1, col2, col3, col4 = st.columns([5, 1.5, 1.5, 1.5])
         
         with col1:
+            # Input Field
             user_input = st.text_input(
                 "Message",
                 placeholder="Ask a question...",
                 label_visibility="collapsed",
-                key="user_input"
+                key="user_input_field"
             )
         
+        # NOTE: Form submit buttons automatically align nicely if they are placed in a column
         with col2:
-            send_button = st.form_submit_button("Send", use_container_width=True)
+            # Send Button
+            send_button = st.form_submit_button("↗️ Send", use_container_width=True)
         
         with col3:
-            clear_button = st.form_submit_button("Clear Chat", use_container_width=True)
-        
+            # Clear Chat Button
+            clear_chat_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+            
+        with col4:
+            # Clear Memory Button (we'll treat this as another submit, but handle it separately)
+            # Using st.form_submit_button is the most reliable way to align in the form row
+            clear_memory_button = st.form_submit_button("🧠 Clear Memory", use_container_width=True, key="clear_memory_btn_form")
+
+
         # Process input with STREAMING
         if send_button and user_input:
             process_message(user_input, rag_system)
             st.rerun()
         
         # Clear chat only (keep memory)
-        if clear_button:
+        if clear_chat_button:
             st.session_state.messages = []
             st.rerun()
-    
-    # ✅ Clear Memory button below - perfectly aligned with Send and Clear Chat buttons
-    col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
-    with col_mem1:
-        if st.button("Clear Memory", key="clear_memory_btn", use_container_width=True):
+
+        # Clear Memory (Reset session history)
+        if clear_memory_button:
             st.session_state.conversation_history = []
+            st.session_state.messages = [] # Often better UX to clear chat too
             st.rerun()
+
+
     
     # Footer
     st.markdown(
@@ -624,6 +660,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
