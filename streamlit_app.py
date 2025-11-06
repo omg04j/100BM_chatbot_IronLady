@@ -81,7 +81,6 @@ st.markdown(f"""
         display: flex;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 1rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }}
     
@@ -202,15 +201,18 @@ st.markdown(f"""
         padding-bottom: 1rem;
     }}
     
-    /* === FIX: INPUT BOX STYLE AND CLIPPING === */
+    /* === CRITICAL FIX: INPUT BOX STYLE AND CLIPPING === */
     .stTextInput > div > div > input {{
         border-radius: 10px; 
         border: 2px solid #DC143C;
-        /* Increased height and padding to prevent clipping of descenders (like in 'q' or 'y') */
-        height: 3.0rem; /* Slightly more height */
-        padding: 0.7rem 1rem; /* More vertical padding */
+        height: 3.0rem; 
+        padding: 0.7rem 1rem; 
         font-size: 1rem; 
         margin-bottom: 0.5rem; 
+        
+        /* THE PIXEL-PERFECT TWEAK */
+        margin-right: -10px; /* Pull the input field slightly to the right to fill the column gap */
+        width: calc(100% + 10px); /* Ensure it expands to cover the adjusted margin */
     }}
     
     .stTextInput > div > div > input:focus {{
@@ -261,6 +263,7 @@ st.markdown(f"""
     }}
     
     /* Ensure no extra padding in columns for tight alignment */
+    /* This section is key for removing standard Streamlit spacing */
     .stTextInput > div {{
         padding-top: 0;
         padding-bottom: 0;
