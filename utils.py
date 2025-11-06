@@ -8,6 +8,7 @@ Features:
 - Maintains accuracy while being adaptive
 - Uses existing content, no hallucinations
 - ✅ NEW: Remembers conversation history for follow-up questions
+- ✅ FIXED: Session-specific memory (not shared between users)
 """
 import streamlit as st
 import os
@@ -26,9 +27,6 @@ from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from langchain_chroma import Chroma
-
-# ✅ NEW: Memory support
-from langchain.memory import ConversationBufferMemory
 
 
 # ============================================================================
@@ -353,12 +351,12 @@ class LLMFactory:
     """Factory for creating LLM instances"""
     
     @staticmethod
-    def get_chat_llm(model: str = "gpt-4", temperature: float = 0.2, streaming: bool = True) -> ChatOpenAI:
+    def get_chat_llm(model: str = "gpt-4o-mini", temperature: float = 0.2, streaming: bool = True) -> ChatOpenAI:
         """Get ChatOpenAI instance - slightly higher temp for personalization"""
         return ChatOpenAI(
             model=model,
-            temperature=temperature,
-            streaming=streaming,
+            temperature=0.2,
+            streaming=True,
             openai_api_key = st.secrets["OPENAI_API_KEY"]
         )
 
@@ -388,13 +386,14 @@ class VectorStoreLoader:
 
 
 # ============================================================================
-# PROFILE-AWARE RAG SYSTEM WITH CONVERSATION MEMORY
+# PROFILE-AWARE RAG SYSTEM WITH SESSION-BASED MEMORY
 # ============================================================================
 
 class ProfileAwareRAGSystem:
     """
-    RAG System with Profile-Based Personalization + Conversation Memory
+    RAG System with Profile-Based Personalization + Session-Based Conversation Memory
     Customized 100BM Delivery Model
+    ✅ FIXED: Memory is now passed from session state (not stored in this class)
     """
     
     def __init__(self, vector_store_path: str = "./vector_store"):
@@ -417,10 +416,6 @@ class ProfileAwareRAGSystem:
             search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.7}
         )
         
-        # ✅ NEW: Conversation memory
-        self.conversation_history = []
-        self.max_history = 10  # Keep last 10 exchanges
-        
         # Metrics
         self.metrics = {
             'query_count': 0,
@@ -431,24 +426,19 @@ class ProfileAwareRAGSystem:
         
         print("✓ Profile-Aware RAG System Ready!")
         print("✓ Supports: doctor, HR, entrepreneur, executive, and more!")
-        print("✓ Conversation memory enabled!")
+        print("✓ Conversation memory enabled (session-based)!")
     
-    def _format_conversation_history(self) -> str:
-        """✅ NEW: Format conversation history for context"""
-        if not self.conversation_history:
+    def _format_conversation_history(self, conversation_history: List[Dict]) -> str:
+        """✅ Format conversation history for context"""
+        if not conversation_history:
             return "No previous conversation."
         
         formatted = []
-        for exchange in self.conversation_history[-self.max_history:]:
+        for exchange in conversation_history[-10:]:  # Last 10 exchanges
             formatted.append(f"User: {exchange['question']}")
             formatted.append(f"Assistant: {exchange['answer'][:200]}...")
         
         return "\n".join(formatted)
-    
-    def clear_memory(self):
-        """✅ NEW: Clear conversation history"""
-        self.conversation_history = []
-        print("✓ Conversation memory cleared")
     
     def _format_docs(self, docs: List[Document]) -> str:
         """Format documents with rich metadata"""
@@ -495,18 +485,22 @@ class ProfileAwareRAGSystem:
         ref_info = self.metadata_handler.get_source_reference(primary_doc)
         return ref_info.get('reference_text')
     
-    def ask(self, question: str, use_agent: bool = False) -> str:
+    def ask(self, question: str, conversation_history: List[Dict] = None, use_agent: bool = False) -> Dict[str, Any]:
         """
         Ask with profile-based personalization + conversation memory
         
         Args:
             question: User's question
+            conversation_history: Session-specific conversation history (from st.session_state)
             use_agent: Legacy parameter
             
         Returns:
-            Personalized answer based on detected profile and conversation history
+            Dict with 'answer' and 'updated_history'
         """
         start_time = time.time()
+        
+        if conversation_history is None:
+            conversation_history = []
         
         try:
             # STEP 1: Detect user profile
@@ -526,7 +520,7 @@ class ProfileAwareRAGSystem:
                 # Get profile context
                 if profile_name == 'custom':
                     profile_context = f"""
-USER PROFILE DETECTED: {custom_prof.upper()}
+USER PROFILE DETECTED: {custom_prof.UPPER()}
 Profile Context: {self.profile_detector.get_profile_context(profile_name, custom_prof)}
 
 IMPORTANT: Personalize examples for this profession while keeping the core framework intact!
@@ -565,7 +559,7 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
                 {
                     "context": lambda _: context,
                     "profile_context": lambda _: profile_context,
-                    "conversation_history": lambda _: self._format_conversation_history(),  # ✅ NEW
+                    "conversation_history": lambda _: self._format_conversation_history(conversation_history),
                     "question": lambda _: question
                 }
                 | prompt
@@ -574,15 +568,6 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
             )
             
             answer = chain.invoke({})
-            
-            # ✅ NEW: Store in conversation memory
-            self.conversation_history.append({
-                'question': question,
-                'answer': answer,
-                'timestamp': datetime.now().isoformat()
-            })
-            if len(self.conversation_history) > self.max_history:
-                self.conversation_history = self.conversation_history[-self.max_history:]
             
             # STEP 6: Clean up and add source
             patterns = [
@@ -599,6 +584,13 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
             
             answer = re.sub(r'\n\n\n+', '\n\n', answer).strip()
             
+            # ✅ Update conversation history (return to caller to store in session)
+            updated_history = conversation_history + [{
+                'question': question,
+                'answer': answer,
+                'timestamp': datetime.now().isoformat()
+            }]
+            
             # Track metrics
             latency = time.time() - start_time
             self.metrics['query_count'] += 1
@@ -610,16 +602,29 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
                 'latency': latency
             })
             
-            return answer
+            return {
+                'answer': answer,
+                'updated_history': updated_history
+            }
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return f"⚠️ Error: {str(e)}"
+            return {
+                'answer': f"⚠️ Error: {str(e)}",
+                'updated_history': conversation_history
+            }
     
-    def ask_stream(self, question: str):
-        """Stream answer with profile personalization + conversation memory"""
+    def ask_stream(self, question: str, conversation_history: List[Dict] = None):
+        """
+        Stream answer with profile personalization + conversation memory
+        
+        ✅ FIXED: Now properly accepts conversation_history parameter
+        """
         start_time = time.time()
+        
+        if conversation_history is None:
+            conversation_history = []
         
         try:
             # Detect profile
@@ -669,7 +674,7 @@ IMPORTANT: Personalize examples for this profile!
                 {
                     "context": lambda _: context,
                     "profile_context": lambda _: profile_context,
-                    "conversation_history": lambda _: self._format_conversation_history(),  # ✅ NEW
+                    "conversation_history": lambda _: self._format_conversation_history(conversation_history),
                     "question": lambda _: question
                 }
                 | prompt
@@ -677,23 +682,24 @@ IMPORTANT: Personalize examples for this profile!
                 | StrOutputParser()
             )
             
-            full_answer = ""  # ✅ NEW: Collect full answer for memory
+            full_answer = ""
             for chunk in chain.stream({}):
                 if chunk:
                     full_answer += chunk
                     yield chunk
             
-            # ✅ NEW: Store in conversation memory
-            self.conversation_history.append({
+            if source_ref:
+                yield f"\n\n📚 {source_ref}"
+            
+            # ✅ Return updated history (caller will store in session)
+            updated_history = conversation_history + [{
                 'question': question,
                 'answer': full_answer,
                 'timestamp': datetime.now().isoformat()
-            })
-            if len(self.conversation_history) > self.max_history:
-                self.conversation_history = self.conversation_history[-self.max_history:]
+            }]
             
-            if source_ref:
-                yield f"\n\n📚 {source_ref}"
+            # Yield special marker with updated history
+            yield f"__HISTORY_UPDATE__:{len(updated_history)}"
             
             # Track metrics
             latency = time.time() - start_time
@@ -723,7 +729,6 @@ IMPORTANT: Personalize examples for this profile!
             'detection_rate': f"{profile_detection_rate:.1f}%",
             'average_latency': f"{avg_latency:.2f}s",
             'total_time': f"{self.metrics['total_latency']:.2f}s",
-            'memory_items': len(self.conversation_history),  # ✅ NEW
             'recent_queries': self.metrics['queries'][-5:]
         }
 
@@ -735,7 +740,7 @@ IMPORTANT: Personalize examples for this profile!
 def main():
     """Test profile-aware system"""
     print("="*80)
-    print("🚀 PROFILE-AWARE RAG SYSTEM with MEMORY - Customized 100BM Delivery")
+    print("🚀 PROFILE-AWARE RAG SYSTEM with SESSION MEMORY - Customized 100BM Delivery")
     print("="*80)
     
     # Initialize
@@ -752,11 +757,16 @@ def main():
     print("\n📝 Testing Profile-Based Personalization...")
     print("="*80)
     
+    session_history = []
+    
     for i, question in enumerate(test_questions, 1):
         print(f"\n{i}. Question: {question}")
         print("-" * 40)
         
-        answer = rag.ask(question)
+        result = rag.ask(question, conversation_history=session_history)
+        answer = result['answer']
+        session_history = result['updated_history']
+        
         print(f"Answer: {answer[:300]}...")
         print("-" * 40)
     
@@ -766,14 +776,13 @@ def main():
     print(f"Total Queries: {metrics['total_queries']}")
     print(f"Profiles Detected: {metrics['profile_detected']}")
     print(f"Detection Rate: {metrics['detection_rate']}")
-    print(f"Memory Items: {metrics['memory_items']}")
+    print(f"Memory Items: {len(session_history)}")
     
     print("\n" + "="*80)
-    print("✅ Profile-Aware System with Memory Ready!")
+    print("✅ Profile-Aware System with Session Memory Ready!")
     print("="*80)
 
 
 if __name__ == "__main__":
     main()
-
 
