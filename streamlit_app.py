@@ -202,14 +202,15 @@ st.markdown(f"""
         padding-bottom: 1rem;
     }}
     
-    /* Compact form styling for Input */
+    /* === FIX: INPUT BOX STYLE AND CLIPPING === */
     .stTextInput > div > div > input {{
-        border-radius: 10px; /* Changed to match image style */
+        border-radius: 10px; 
         border: 2px solid #DC143C;
-        height: 2.75rem; 
-        padding: 0.5rem 1rem; 
+        /* Increased height and padding to prevent clipping of descenders (like in 'q' or 'y') */
+        height: 3.0rem; /* Slightly more height */
+        padding: 0.7rem 1rem; /* More vertical padding */
         font-size: 1rem; 
-        margin-bottom: 0.5rem; /* Add some space before the next row */
+        margin-bottom: 0.5rem; 
     }}
     
     .stTextInput > div > div > input:focus {{
@@ -219,40 +220,37 @@ st.markdown(f"""
     
     /* Enhanced button styling for desired look */
     .stButton > button {{
-        /* Changed to square-ish rounded corners like the image */
         border-radius: 10px; 
-        background: white; /* Changed to white background like the image */
-        color: #DC143C; /* Icon/Text color */
-        border: 1px solid #ccc; /* Subtle border like the image */
+        background: white; 
+        color: #DC143C; 
+        border: 1px solid #ccc; 
         font-weight: bold;
         padding: 0.5rem 0.25rem; 
         font-size: 0.85rem; 
-        height: 3.5rem; /* Increased height to be taller than input */
+        height: 3.5rem; 
         line-height: 1; 
         transition: all 0.3s ease;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
         margin-top: 0; 
         display: flex;
-        flex-direction: column; /* Stack icon and text */
+        flex-direction: column; 
         align-items: center;
         justify-content: center;
         gap: 0.25rem; 
     }}
     
     .stButton > button:hover {{
-        background: #f8f8f8; /* Slight hover change */
-        border-color: #DC143C; /* Red border on hover */
+        background: #f8f8f8; 
+        border-color: #DC143C; 
         box-shadow: 0 2px 4px rgba(220, 20, 60, 0.2);
         transform: translateY(-1px);
     }}
     
     /* Specific styling for the 'Clear Memory' button */
     #clear_memory_btn_second_row > button {{ 
-        /* Match the look of the top buttons */
         background: white;
         border: 1px solid #ccc;
         color: #DC143C;
-        /* Force full width in its column */
         width: 100%;
         height: 3.5rem;
     }}
@@ -280,7 +278,7 @@ st.markdown(f"""
     .memory-icon {{
         font-size: 1.5rem;
         line-height: 1;
-        color: #E3526E; /* Pink/Red brain color like the image */
+        color: #E3526E; 
     }}
     
 </style>
@@ -458,20 +456,19 @@ def render_chat_widget():
     # ------------------------------------------------------------------
     with st.form(key="chat_form", clear_on_submit=True):
         # Columns to hold Input, Send, and Clear Chat
-        # Note: We reserve space for the Clear Memory button by using a wide column for Input.
         col1, col2, col3 = st.columns([6, 1.5, 1.5])
         
         with col1:
-            # Input Field
+            # Input Field with correct placeholder and collapsed label
             user_input = st.text_input(
-                "Message",
+                label="", # Empty label is required for placeholder-only look
                 placeholder="Ask a question...",
-                label_visibility="collapsed",
+                label_visibility="collapsed", # Hides the label AND its space
                 key="user_input_field"
             )
         
         with col2:
-            # Send Button - Use custom HTML for the logo/text structure
+            # Send Button
             send_button = st.form_submit_button(
                 "↗️ Send", 
                 use_container_width=True,
@@ -479,7 +476,7 @@ def render_chat_widget():
             )
         
         with col3:
-            # Clear Chat Button - Use custom HTML for the logo/text structure
+            # Clear Chat Button
             clear_chat_button = st.form_submit_button(
                 "🗑️ Clear Chat", 
                 use_container_width=True,
@@ -496,14 +493,14 @@ def render_chat_widget():
             st.rerun()
 
     # ------------------------------------------------------------------
-    # ✅ ROW 2: Clear Memory (Outside form for simpler layout control)
+    # ✅ ROW 2: Clear Memory 
     # ------------------------------------------------------------------
-    # Align the empty space with the Input field column, and the button with 
-    # the Send/Clear Chat columns combined.
+    # Align the empty space with the Input field column (6), and the button with 
+    # the Send/Clear Chat columns combined (1.5 + 1.5 = 3).
     col_mem_empty, col_mem_btn = st.columns([6, 3]) 
 
     with col_mem_btn:
-        # Clear Memory Button - Use markdown and custom class for the logo/text
+        # Clear Memory Button 
         clear_memory_clicked = st.button(
             "🧠 Clear Memory", 
             key="clear_memory_btn_second_row", 
