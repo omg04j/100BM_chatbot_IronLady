@@ -1,4 +1,3 @@
-
 import streamlit as st
 from typing import List, Dict, Any
 from datetime import datetime
@@ -207,6 +206,9 @@ st.markdown(f"""
     .stTextInput > div > div > input {{
         border-radius: 20px;
         border: 2px solid #DC143C;
+        height: 2.75rem; /* Increased input box height */
+        padding: 0.5rem 1rem; /* Adjust padding for visual balance */
+        font-size: 1rem; /* Readable font size */
     }}
     
     .stTextInput > div > div > input:focus {{
@@ -214,30 +216,47 @@ st.markdown(f"""
         box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
     }}
     
-    /* Enhanced button styling - ULTRA COMPACT VERSION */
+    /* Enhanced button styling for desired look */
     .stButton > button {{
-        border-radius: 12px;
+        border-radius: 20px;
         background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
         color: white;
         border: none;
         font-weight: bold;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem; /* Wider padding for wider button text */
+        font-size: 0.9rem; /* Slightly larger font for readability */
+        height: 2.75rem; /* Match input height for alignment */
+        line-height: 1; /* Center text vertically */
         transition: all 0.3s ease;
-        box-shadow: 0 1px 3px rgba(220, 20, 60, 0.3);
-        height: 28px;
-        min-height: 28px;
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+        margin-top: 0; /* Remove default margin to align with input */
+        display: flex; /* Use flexbox for icon/text alignment */
+        align-items: center; /* Center vertically */
+        justify-content: center; /* Center horizontally */
+        gap: 0.25rem; /* Space between icon and text */
+    }}
+    
+    /* Specific styling for the 'Clear Memory' button to stand out */
+    #clear_memory_btn_form > button {{ /* Updated ID for the form button */
+        background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%); /* Keeping it red for consistency with the theme */
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+    }}
+
+    #clear_memory_btn_form > button:hover {{ /* Updated ID for the form button */
+        background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
+        box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
+        transform: translateY(-2px);
     }}
     
     .stButton > button:hover {{
         background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
-        box-shadow: 0 2px 5px rgba(220, 20, 60, 0.4);
-        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
+        transform: translateY(-2px);
     }}
     
     .stButton > button:active {{
         transform: translateY(0px);
-        box-shadow: 0 1px 3px rgba(220, 20, 60, 0.3);
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
     }}
     
     /* Streaming cursor animation */
@@ -306,6 +325,22 @@ st.markdown(f"""
         color: #4CAF50;
         text-align: center;
     }}
+
+    /* Specific column adjustments for compact buttons */
+    /* Remove unnecessary padding around elements in columns */
+    .stTextInput > div {{
+        padding-top: 0;
+        padding-bottom: 0;
+    }}
+    .stForm > div > div {{
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }}
+    .stForm > div {{
+        margin-bottom: 0;
+    }}
+    
 </style>
 """, unsafe_allow_html=True)
 
@@ -475,44 +510,52 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # Input field
-    user_input = st.text_input(
-        "Message",
-        placeholder="Ask a question...",
-        label_visibility="collapsed",
-        key="user_input"
-    )
+    # ✅ COMPACT BUTTON ROW: Input, Send, Clear Chat, and Clear Memory
     
-    # ✅ EXACT LAYOUT LIKE YOUR IMAGE: 2x2 grid of compact buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        send_button = st.button("Send", use_container_width=True, key="send_btn")
-    
-    with col2:
-        clear_chat_button = st.button("Clear Chat", use_container_width=True, key="clear_chat_btn")
-    
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        # Empty space to align with Send button
-        pass
-    
-    with col4:
-        clear_memory_button = st.button("Memo", use_container_width=True, key="clear_memory_btn")
-    
-    # Process actions
-    if send_button and user_input:
-        process_message(user_input, rag_system)
-        st.rerun()
-    
-    if clear_chat_button:
-        st.session_state.messages = []
-        st.rerun()
-    
-    if clear_memory_button:
-        st.session_state.conversation_history = []
-        st.rerun()
+    with st.form(key="chat_form", clear_on_submit=True):
+        # Adjusted column ratios for a more compact look and wider buttons
+        # Input 6, Send 1.5, Clear Chat 1.5, Clear Memory 1.5 (total ~10)
+        col1, col2, col3, col4 = st.columns([6, 1.5, 1.5, 1.5])
+        
+        with col1:
+            # Input Field
+            user_input = st.text_input(
+                "Message",
+                placeholder="Ask a question...",
+                label_visibility="collapsed",
+                key="user_input_field"
+            )
+        
+        with col2:
+            # Send Button
+            send_button = st.form_submit_button("↗️ Send", use_container_width=True)
+        
+        with col3:
+            # Clear Chat Button
+            clear_chat_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+            
+        with col4:
+            # Clear Memory Button
+            clear_memory_button = st.form_submit_button("🧠 Clear Memory", use_container_width=True, key="clear_memory_btn_form")
+
+
+        # Process input with STREAMING
+        if send_button and user_input:
+            process_message(user_input, rag_system)
+            st.rerun()
+        
+        # Clear chat only (keep memory)
+        if clear_chat_button:
+            st.session_state.messages = []
+            st.rerun()
+
+        # Clear Memory (Reset session history)
+        if clear_memory_button:
+            st.session_state.conversation_history = []
+            st.session_state.messages = [] # Often better UX to clear chat too
+            st.rerun()
+
+
     
     # Footer
     st.markdown(
@@ -618,4 +661,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
