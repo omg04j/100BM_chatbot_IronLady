@@ -1,786 +1,620 @@
 """
-PROFILE-AWARE UNIVERSAL RAG SYSTEM WITH CONVERSATION MEMORY
-Customized 100BM Delivery Model - Personalized for Each Professional Profile
-
-Features:
-- Auto-detects user profile (doctor, HR, entrepreneur, etc.)
-- Personalizes generic content with profile-specific examples
-- Maintains accuracy while being adaptive
-- Uses existing content, no hallucinations
-- ✅ NEW: Remembers conversation history for follow-up questions
-- ✅ FIXED: Session-specific memory (not shared between users)
+🤖 Iron Lady Leadership Program - 100BM AI Assistant
+Simple Chat Widget for LMS Page with Streaming
+Embeddable chatbot interface - Real-time text generation
+✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
+✅ WITH CLEAR MEMORY BUTTON (in header corner)
 """
+
 import streamlit as st
-import os
-import re
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any
 from datetime import datetime
-import time
+import base64
+from pathlib import Path
+import sys
+import os
 
-# LangChain Core
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.documents import Document
+# Add current directory to path if needed
+if os.getcwd() not in sys.path:
+    sys.path.insert(0, os.getcwd())
 
-# LangChain OpenAI
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+# Minimal page configuration - MUST be first Streamlit command
+st.set_page_config(
+    page_title="100 BM Assistant",
+    page_icon="🤖",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-from langchain_chroma import Chroma
-
-
-# ============================================================================
-# PROFILE DETECTOR
-# ============================================================================
-
-class ProfileDetector:
-    """
-    Detects user's professional profile from their question
-    Maps to customization approach
-    """
+# Import after streamlit config to avoid issues
+try:
+    # Import the RAG system from utils module
+    import utils
+    # Get the class from the module
+    ProfileAwareRAGSystem = getattr(utils, 'ProfileAwareRAGSystem', None)
     
-    # Profile keywords and variations
-    PROFILE_KEYWORDS = {
-        'doctor': ['doctor', 'physician', 'medical', 'healthcare provider', 'clinician', 'surgeon', 'dentist'],
-        'hr_leader': ['hr', 'human resources', 'hr manager', 'hr director', 'chro', 'people ops', 'talent'],
-        'entrepreneur': ['entrepreneur', 'founder', 'startup', 'business owner', 'ceo of startup', 'starting business'],
-        'corporate_executive': ['executive', 'cxo', 'vp', 'vice president', 'director', 'senior leader', 'c-suite'],
-        'consultant': ['consultant', 'consulting', 'advisor', 'advisory'],
-        'engineer': ['engineer', 'technical lead', 'tech professional', 'software', 'it professional'],
-        'lawyer': ['lawyer', 'attorney', 'legal', 'advocate'],
-        'educator': ['teacher', 'professor', 'educator', 'academic', 'principal'],
-        'finance': ['finance', 'accountant', 'cfo', 'financial', 'banker'],
-    }
+    if ProfileAwareRAGSystem is None:
+        st.error("❌ Could not find ProfileAwareRAGSystem in utils.py")
+        st.info("Available classes in utils.py:")
+        for name in dir(utils):
+            obj = getattr(utils, name)
+            if isinstance(obj, type) and not name.startswith('_'):
+                st.info(f"  - {name}")
+        st.stop()
+        
+except Exception as e:
+    st.error(f"❌ Error importing from utils.py: {str(e)}")
+    st.info("""
+    **Troubleshooting Tips:**
+    1. Check if utils.py has any self-imports (like `from utils import ...`)
+    2. Make sure all dependencies are installed (langchain, openai, etc.)
+    3. Check if there are any syntax errors in utils.py
+    4. Make sure .env file exists with OPENAI_API_KEY
+    """)
+    st.stop()
+
+# Function to encode logo image
+def get_logo_base64():
+    """Convert logo to base64 for embedding"""
+    try:
+        logo_path = Path("iron_lady_logo.png")
+        if logo_path.exists():
+            with open(logo_path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    except:
+        pass
+    return None
+
+logo_b64 = get_logo_base64()
+
+# Compact CSS for embedded widget with RED theme
+st.markdown(f"""
+<style>
+    /* Hide Streamlit default elements */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
     
-    @classmethod
-    def detect_profile(cls, question: str) -> Optional[Dict[str, Any]]:
-        """
-        Detect professional profile from question
-        Returns: {'profile': 'doctor', 'confidence': 'high'}
-        """
-        question_lower = question.lower()
-        
-        # Check each known profile
-        for profile, keywords in cls.PROFILE_KEYWORDS.items():
-            for keyword in keywords:
-                if keyword in question_lower:
-                    return {
-                        'profile': profile,
-                        'confidence': 'high',
-                        'detected_keyword': keyword
-                    }
-        
-        # Check for generic professional indicators
-        profession_patterns = [
-            r'i am (?:a|an) ([a-z\s]+)',
-            r'as (?:a|an) ([a-z\s]+)',
-            r"i'm (?:a|an) ([a-z\s]+)",
-            r'working as (?:a|an) ([a-z\s]+)',
-        ]
-        
-        for pattern in profession_patterns:
-            match = re.search(pattern, question_lower)
-            if match:
-                profession = match.group(1).strip()
-                profession = re.split(r'\s+(?:how|what|where|when|why|can|do)', profession)[0]
-                
-                if profession and len(profession.split()) <= 3:
-                    return {
-                        'profile': 'custom',
-                        'custom_profile': profession,
-                        'confidence': 'medium',
-                        'detected_keyword': profession
-                    }
-        
-        return None
+    /* Compact chat widget styling */
+    .stApp {{
+        max-width: 600px;
+        margin: 0 auto;
+    }}
     
-    @classmethod
-    def get_profile_context(cls, profile: str, custom_profile: str = None) -> str:
-        """
-        Get context about each profile for better personalization
-        Handles both predefined and custom profiles
-        """
-        contexts = {
-            'doctor': """
-            Healthcare professionals focused on:
-            - Patient outcomes and care quality
-            - Managing medical teams (residents, nurses)
-            - Clinical excellence and research
-            - Hospital administration and operations
-            - Board certification and advancement
-            - Balancing clinical work with leadership
-            """,
-            
-            'hr_leader': """
-            Human Resources leaders focused on:
-            - Talent acquisition and retention
-            - Employee development and engagement
-            - Organizational culture and change
-            - Performance management systems
-            - Strategic workforce planning
-            - Diversity, equity, and inclusion
-            """,
-            
-            'entrepreneur': """
-            Business founders focused on:
-            - Building and scaling businesses
-            - Product-market fit and growth
-            - Fundraising and investor relations
-            - Team building and leadership
-            - Customer acquisition and retention
-            - Managing limited resources effectively
-            """,
-            
-            'corporate_executive': """
-            Senior corporate leaders focused on:
-            - Strategic business decisions
-            - P&L management and growth
-            - Stakeholder management (board, investors)
-            - Organizational transformation
-            - Leading large teams (100+ people)
-            - Cross-functional collaboration
-            """,
-            
-            'consultant': """
-            Professional consultants focused on:
-            - Client engagement and delivery
-            - Problem-solving and recommendations
-            - Building credibility and expertise
-            - Managing multiple projects
-            - Thought leadership and positioning
-            - Business development
-            """,
-            
-            'engineer': """
-            Technical professionals focused on:
-            - Technical leadership and architecture
-            - Team management and mentoring
-            - Innovation and product development
-            - Balancing technical depth with leadership
-            - Cross-functional collaboration
-            - Strategic technology decisions
-            """,
-            
-            'lawyer': """
-            Legal professionals focused on:
-            - Case management and client service
-            - Legal strategy and advisory
-            - Team leadership and development
-            - Business development and partnerships
-            - Professional reputation
-            - Work-life balance in demanding field
-            """,
-            
-            'educator': """
-            Educational leaders focused on:
-            - Student outcomes and development
-            - Curriculum design and innovation
-            - Faculty/team management
-            - Institutional leadership
-            - Balancing teaching with administration
-            - Educational technology and methods
-            """,
-            
-            'finance': """
-            Financial professionals focused on:
-            - Financial planning and analysis
-            - Risk management and compliance
-            - Strategic financial decisions
-            - Investor relations and reporting
-            - Team leadership and development
-            - Business partnering with operations
-            """
-        }
-        
-        if profile in contexts:
-            return contexts[profile]
-        
-        if profile == 'custom' and custom_profile:
-            return f"""
-            {custom_profile.title()} professional focused on:
-            - Professional excellence and leadership in their field
-            - Managing teams and stakeholders effectively
-            - Balancing technical/functional work with strategic leadership
-            - Career growth and board-level positioning
-            - Applying frameworks to their specific domain
-            - Achieving measurable business outcomes
-            
-            Note: Adapt examples to this profession's context where relevant.
-            """
-        
-        return "Professional focused on leadership and growth"
+    .chat-header {{
+        background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
+        padding: 1.5rem;
+        border-radius: 10px 10px 0 0;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }}
+    
+    .chat-header-logo {{
+        width: 50px;
+        height: 50px;
+        background-color: white;
+        border-radius: 8px;
+        padding: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    
+    .chat-header-logo img {{
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }}
+    
+    .chat-header-text {{
+        flex: 1;
+    }}
+    
+    .chat-header-title {{
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin: 0;
+    }}
+    
+    .chat-header-subtitle {{
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin: 0;
+    }}
+    
+    .chat-container {{
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        max-height: 500px;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+    }}
+    
+    .chat-message {{
+        padding: 0.75rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        animation: fadeIn 0.3s;
+    }}
+    
+    @keyframes fadeIn {{
+        from {{ opacity: 0; transform: translateY(10px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    
+    .user-message {{
+        background-color: #ffebee;
+        margin-left: 2rem;
+        text-align: right;
+        border-left: 4px solid #DC143C;
+    }}
+    
+    .assistant-message {{
+        background-color: white;
+        margin-right: 2rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }}
+    
+    .welcome-message {{
+        background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
+        border: 2px solid #DC143C;
+        margin: 0;
+    }}
+    
+    .message-label {{
+        font-size: 0.75rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        color: #DC143C;
+    }}
+    
+    .message-content {{
+        color: #333;
+        line-height: 1.5;
+    }}
+    
+    .input-container {{
+        background: white;
+        padding: 1rem;
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }}
+    
+    .source-badge {{
+        display: inline-block;
+        background-color: #ffebee;
+        color: #DC143C;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        margin: 0.25rem 0.25rem 0 0;
+        border: 1px solid #DC143C;
+    }}
+    
+    .powered-by {{
+        text-align: center;
+        font-size: 0.7rem;
+        color: #999;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0;
+    }}
+    
+    /* Hide extra Streamlit padding */
+    .block-container {{
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }}
+    
+    /* Compact form styling */
+    .stTextInput > div > div > input {{
+        border-radius: 20px;
+        border: 2px solid #DC143C;
+    }}
+    
+    .stTextInput > div > div > input:focus {{
+        border-color: #8B0000;
+        box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
+    }}
+    
+    /* Enhanced button styling */
+    .stButton > button {{
+        border-radius: 20px;
+        background: linear-gradient(135deg, #DC143C 0%, #8B0000 100%);
+        color: white;
+        border: none;
+        font-weight: bold;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+    }}
+    
+    .stButton > button:hover {{
+        background: linear-gradient(135deg, #C41E3A 0%, #7A0000 100%);
+        box-shadow: 0 4px 8px rgba(220, 20, 60, 0.4);
+        transform: translateY(-2px);
+    }}
+    
+    .stButton > button:active {{
+        transform: translateY(0px);
+        box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+    }}
+    
+    /* Streaming cursor animation */
+    @keyframes blink {{
+        0%, 50% {{ opacity: 1; }}
+        51%, 100% {{ opacity: 0; }}
+    }}
+    
+    .typing-cursor::after {{
+        content: '▌';
+        animation: blink 1s infinite;
+    }}
+    
+    /* Suggested questions styling */
+    .suggestions-section {{
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+        border-radius: 10px;
+        border: 2px solid #DC143C;
+    }}
+    
+    .suggestions-title {{
+        color: #DC143C;
+        font-weight: bold;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }}
+    
+    .feature-badge {{
+        display: inline-block;
+        background: rgba(220, 20, 60, 0.1);
+        border: 1px solid #DC143C;
+        color: #DC143C;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+        font-weight: 600;
+    }}
+    
+    /* ✅ Memory badge styling */
+    .memory-badge {{
+        display: inline-block;
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid #4CAF50;
+        color: #4CAF50;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+        font-weight: 600;
+    }}
+    
+    /* ✅ Memory status display */
+    .memory-status {{
+        background: rgba(76, 175, 80, 0.05);
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: #4CAF50;
+        text-align: center;
+    }}
+</style>
+""", unsafe_allow_html=True)
 
 
 # ============================================================================
-# PROFILE-AWARE PROMPT WITH CONVERSATION MEMORY
+# INITIALIZATION
 # ============================================================================
 
-def get_profile_aware_prompt() -> ChatPromptTemplate:
-    """
-    Enhanced prompt that personalizes content based on user profile
-    ✅ NOW includes conversation history awareness
-    """
-    return ChatPromptTemplate.from_messages([
-        ("system", """You are an expert assistant for the Iron Lady Leadership Program (100 Badass Women - 100BM).
-
-This program serves professional women preparing for board-level positions.
-
-⚠️ CRITICAL RULES - FOLLOW EXACTLY:
-1. Answer ONLY based on the provided context from the program
-2. Use the EXACT frameworks and terminology from the context
-3. DO NOT invent framework details not in the context
-4. When a USER PROFILE is provided, PERSONALIZE examples using that profile
-5. ✅ USE conversation history to provide better follow-up answers
-
-⚠️ CONVERSATION AWARENESS:
-- If the question refers to previous discussion (e.g., "the first T", "that principle"), use the conversation history
-- Build on previous answers naturally
-- Don't repeat information already provided unless asked
-- Reference earlier context when relevant
-
-⚠️ PERSONALIZATION INSTRUCTIONS:
-When user profile is detected:
-1. START with the exact framework/concept from the context
-2. THEN adapt examples to their professional context
-3. Use their domain terminology naturally
-4. Show how the framework applies to their specific challenges
-5. Keep the core framework intact - only personalize examples
-
-Example of good personalization:
-Context says: "4T Management: Target, Time, Team, Theme"
-User is: Doctor
-GOOD Answer: "The 4T Management framework (Target, Time, Team, Theme) for doctors:
-- Target: Set Delta 2 goals like 'Reduce patient readmission by 25%' (aspirational beyond job description)
-- Time: Use ERRC to eliminate non-critical meetings, reduce admin time, raise patient interaction
-- Team: Apply Bell Curve to manage residents - identify Flyers (ambitious), Followers (solid), Flankers (specialists)
-- Theme: Focus on strategic healthcare outcomes, not just clinical tasks"
-
-BAD Answer: Making up a completely different framework or losing the original structure.
-
-⚠️ IF NO PROFILE DETECTED:
-Provide the framework as-is with general examples from the context.
-
-Guidelines:
-- Be direct and actionable
-- Use specific examples from their domain
-- Maintain board-level, strategic tone
-- Stay 100% faithful to the core framework
-- Be empowering and practical
-
-IMPORTANT: 
-- DO NOT add references or "For more details" sections
-- References will be added automatically
-"""),
-        ("user", """Context from Iron Lady Leadership Program:
-{context}
-
-{profile_context}
-
-✅ Previous Conversation:
-{conversation_history}
-
-Current Question: {question}
-
-Answer the question using the context and previous conversation. If a profile was detected, personalize examples for that professional.""")
-    ])
+@st.cache_resource
+def initialize_system():
+    """Initialize RAG system (cached) - NO conversation memory stored here"""
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+        
+        # Initialize the ProfileAwareRAGSystem (stateless - no memory)
+        rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
+        return rag_system, None
+        
+    except FileNotFoundError as e:
+        return None, f"Vector store not found: {str(e)}"
+    except Exception as e:
+        return None, f"Initialization error: {str(e)}"
 
 
-# ============================================================================
-# UNIVERSAL METADATA HANDLER
-# ============================================================================
-
-class UniversalMetadataHandler:
-    """Handles metadata from ANY file automatically"""
+def initialize_chat():
+    """Initialize chat session state with SESSION-SPECIFIC memory"""
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
     
-    @staticmethod
-    def extract_clean_filename(source_file: str) -> str:
-        """Extract clean, readable filename"""
-        name = source_file.replace('.docx', '').replace('.pdf', '').replace('.txt', '')
-        name = re.sub(r'^\d+\.\s*', '', name)
-        return name.strip()
+    if 'show_sources' not in st.session_state:
+        st.session_state.show_sources = False
     
-    @staticmethod
-    def get_source_reference(doc: Document) -> Dict[str, Any]:
-        """Get source reference from document metadata"""
-        metadata = doc.metadata
+    # ✅ CRITICAL FIX: Session-specific conversation memory (NOT shared between users)
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
+
+
+# ============================================================================
+# SUGGESTED QUESTIONS
+# ============================================================================
+
+SUGGESTED_QUESTIONS = [
+    "💊 I am a doctor, how can I apply 4T principles?",
+    "👥 As an HR leader, what is the capability matrix?",
+    "📋 How to create a board member persona?",
+    "💻 As a tech executive, what is the success story framework?",
+    "🗓️ What is my batch schedule?"
+]
+
+
+def render_suggestions():
+    """Render suggested questions section"""
+    if not st.session_state.messages:  # Only show when chat is empty
+        st.markdown("""
+        <div class="suggestions-section">
+            <div class="suggestions-title">💡 Try these questions:</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        source_file = metadata.get('source_file', 'Unknown')
-        parent_folder = metadata.get('parent_folder', '')
-        session_number = metadata.get('session_number')
-        facilitator = metadata.get('facilitator')
+        # Create clickable buttons for each suggestion
+        for i, question in enumerate(SUGGESTED_QUESTIONS):
+            if st.button(question, key=f"suggest_{i}", use_container_width=True):
+                # Set the question as if user typed it
+                st.session_state.pending_question = question.split(" ", 1)[1]  # Remove emoji
+                st.rerun()
+
+
+# ============================================================================
+# CHAT WIDGET WITH STREAMING AND SESSION-BASED MEMORY
+# ============================================================================
+
+def render_chat_widget():
+    """Render compact chat widget with streaming support and session-based memory"""
+    
+    # Initialize
+    initialize_chat()
+    rag_system, error = initialize_system()
+    
+    if error or not rag_system:
+        st.error(f"⚠️ System not available: {error}")
+        st.info("""
+        **Setup Instructions:**
+        1. Create a `.env` file in your project directory
+        2. Add: `OPENAI_API_KEY=your-key-here`
+        3. Make sure `vector_store` folder exists
+        4. Run: `python vector_store.py` to create the vector store if needed
+        """)
+        return
+    
+    # Header with Iron Lady logo
+    logo_html = ""
+    if logo_b64:
+        logo_html = f'<div class="chat-header-logo"><img src="data:image/png;base64,{logo_b64}" alt="Iron Lady Logo"></div>'
+    
+    st.markdown(f"""
+    <div class="chat-header">
+        {logo_html}
+        <div class="chat-header-text">
+            <div class="chat-header-title">100BM AI Assistant</div>
+            <div class="chat-header-subtitle">Iron Lady Leadership Program</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ✅ Small Clear Memory button in corner (outside header)
+    col1, col2 = st.columns([5, 1])
+    with col2:
+        if st.button("🧠 Clear", key="clear_memory_btn", help="Clear memory"):
+            st.session_state.conversation_history = []
+            st.rerun()
+    
+    # ✅ Memory status indicator (if there's conversation history)
+    if len(st.session_state.conversation_history) > 0:
+        st.markdown(f"""
+        <div class="memory-status">
+            🧠 <b>Memory Active:</b> Remembering {len(st.session_state.conversation_history)} conversation(s)
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Suggested questions section (only when chat is empty)
+    render_suggestions()
+    
+    # Chat container
+    chat_container = st.container()
+    
+    with chat_container:
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         
-        clean_name = UniversalMetadataHandler.extract_clean_filename(source_file)
+        if not st.session_state.messages:
+            # ✅ Welcome message with memory indicator
+            st.markdown(f"""
+            <div class="chat-message assistant-message welcome-message">
+                <div class="message-label">🤖 Assistant</div>
+                <div class="message-content">
+                    👋 <b>Welcome to 100BM AI Chat!</b>
+                    <br><br>
+                    I'm your intelligent assistant for the <b>Iron Lady Leadership Program</b>. 
+                    Tell me your profession for personalized advice!
+                    <br><br>
+                    <span class="feature-badge">🎯 Profile-Aware</span>
+                    <span class="feature-badge">📚 100BM Content</span>
+                    <span class="feature-badge">⚡ Real-Time</span>
+                    <span class="memory-badge">🧠 Memory Enabled</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        ref_info = {
-            'source_file': source_file,
-            'clean_name': clean_name,
-            'parent_folder': parent_folder,
-            'type': None,
-            'reference_text': None
-        }
-        
-        if session_number:
-            ref_info['type'] = 'session'
-            ref_text = f"For more details, refer to **Session {session_number}"
-            if facilitator:
-                ref_text += f" (Facilitator: {facilitator})"
-            ref_text += "** videos and documentation (PPT/PDF)."
-            ref_info['reference_text'] = ref_text
-            
-        elif parent_folder and parent_folder != 'lms_content':
-            ref_info['type'] = 'folder_content'
-            if any(kw in source_file.lower() for kw in ['video', 'sawaal', 'showcase', 'connect', 'revision']):
-                ref_info['reference_text'] = f"For more details, visit **{clean_name}** video."
+        # Display chat history
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                st.markdown(f"""
+                <div class="chat-message user-message">
+                    <div class="message-label">👤 You</div>
+                    <div class="message-content">{msg["content"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
             else:
-                ref_info['reference_text'] = f"For more details, refer to **{parent_folder} - {clean_name}**."
-        else:
-            ref_info['type'] = 'general'
-            if any(kw in source_file.lower() for kw in ['video', 'sawaal', 'showcase']):
-                ref_info['reference_text'] = f"For more details, visit **{clean_name}** video."
-            else:
-                ref_info['reference_text'] = f"For more details, refer to **{clean_name}**."
+                st.markdown(f"""
+                <div class="chat-message assistant-message">
+                    <div class="message-label">🤖 Assistant</div>
+                    <div class="message-content">{msg["content"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
         
-        return ref_info
-
-
-# ============================================================================
-# LLM FACTORY
-# ============================================================================
-
-class LLMFactory:
-    """Factory for creating LLM instances"""
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    @staticmethod
-    def get_chat_llm(model: str = "gpt-4o", temperature: float = 0.2, streaming: bool = True) -> ChatOpenAI:
-        """Get ChatOpenAI instance - slightly higher temp for personalization"""
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            streaming=streaming,
-            openai_api_key = st.secrets["OPENAI_API_KEY"]
-        )
-
-
-# ============================================================================
-# VECTOR STORE LOADER
-# ============================================================================
-
-class VectorStoreLoader:
-    """Load existing vector store"""
+    # Check if there's a pending question from suggestions
+    if hasattr(st.session_state, 'pending_question'):
+        user_input = st.session_state.pending_question
+        delattr(st.session_state, 'pending_question')
+        process_message(user_input, rag_system)
+        st.rerun()
     
-    def __init__(self, persist_directory: str = "./vector_store"):
-        self.persist_directory = persist_directory
-        self.embeddings = OpenAIEmbeddings(openai_api_key = st.secrets["OPENAI_API_KEY"])
-        self.vectorstore = None
+    # Input form with enhanced buttons
+    st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    def load(self):
-        """Load vector store"""
-        print(f"📂 Loading vector store from: {self.persist_directory}")
-        self.vectorstore = Chroma(
-            persist_directory=self.persist_directory,
-            embedding_function=self.embeddings
-        )
-        count = self.vectorstore._collection.count()
-        print(f"✓ Loaded {count} vectors")
-        return self.vectorstore
-
-
-# ============================================================================
-# PROFILE-AWARE RAG SYSTEM WITH SESSION-BASED MEMORY
-# ============================================================================
-
-class ProfileAwareRAGSystem:
-    """
-    RAG System with Profile-Based Personalization + Session-Based Conversation Memory
-    Customized 100BM Delivery Model
-    ✅ FIXED: Memory is now passed from session state (not stored in this class)
-    """
-    
-    def __init__(self, vector_store_path: str = "./vector_store"):
-        print("🚀 Initializing Profile-Aware RAG System...")
+    # ✅ Button row without Memory button (moved to header)
+    with st.form(key="chat_form", clear_on_submit=True):
+        col1, col2, col3 = st.columns([7, 1.5, 1.5])
         
-        # Load vector store
-        self.vector_store = VectorStoreLoader(persist_directory=vector_store_path)
-        self.vector_store.load()
-        
-        # Initialize LLM with slight creativity for personalization
-        self.llm = LLMFactory.get_chat_llm(temperature=0.2)
-        
-        # Initialize components
-        self.metadata_handler = UniversalMetadataHandler()
-        self.profile_detector = ProfileDetector()
-        
-        # Create retriever with MMR
-        self.retriever = self.vector_store.vectorstore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.7}
-        )
-        
-        # Metrics
-        self.metrics = {
-            'query_count': 0,
-            'total_latency': 0.0,
-            'profile_detected_count': 0,
-            'queries': []
-        }
-        
-        print("✓ Profile-Aware RAG System Ready!")
-        print("✓ Supports: doctor, HR, entrepreneur, executive, and more!")
-        print("✓ Conversation memory enabled (session-based)!")
-    
-    def _format_conversation_history(self, conversation_history: List[Dict]) -> str:
-        """✅ Format conversation history for context"""
-        if not conversation_history:
-            return "No previous conversation."
-        
-        formatted = []
-        for exchange in conversation_history[-10:]:  # Last 10 exchanges
-            formatted.append(f"User: {exchange['question']}")
-            formatted.append(f"Assistant: {exchange['answer'][:200]}...")
-        
-        return "\n".join(formatted)
-    
-    def _format_docs(self, docs: List[Document]) -> str:
-        """Format documents with rich metadata"""
-        formatted = []
-        
-        for doc in docs:
-            header_parts = []
-            
-            source_file = doc.metadata.get('source_file', '')
-            if source_file:
-                clean_name = self.metadata_handler.extract_clean_filename(source_file)
-                header_parts.append(f"Source: {clean_name}")
-            
-            parent_folder = doc.metadata.get('parent_folder', '')
-            if parent_folder and parent_folder != 'lms_content':
-                header_parts.append(f"Category: {parent_folder}")
-            
-            session_num = doc.metadata.get('session_number')
-            if session_num:
-                session_title = doc.metadata.get('session_title', '')
-                if session_title:
-                    header_parts.append(f"Session {session_num}: {session_title}")
-                else:
-                    header_parts.append(f"Session {session_num}")
-            
-            facilitator = doc.metadata.get('facilitator')
-            if facilitator:
-                header_parts.append(f"Facilitator: {facilitator}")
-            
-            if header_parts:
-                header = f"[{' | '.join(header_parts)}]"
-                formatted.append(f"{header}\n{doc.page_content}")
-            else:
-                formatted.append(doc.page_content)
-        
-        return "\n\n---\n\n".join(formatted)
-    
-    def _get_primary_source_reference(self, retrieved_docs: List[Document]) -> Optional[str]:
-        """Get source reference from primary document"""
-        if not retrieved_docs:
-            return None
-        
-        primary_doc = retrieved_docs[0]
-        ref_info = self.metadata_handler.get_source_reference(primary_doc)
-        return ref_info.get('reference_text')
-    
-    def ask(self, question: str, conversation_history: List[Dict] = None, use_agent: bool = False) -> Dict[str, Any]:
-        """
-        Ask with profile-based personalization + conversation memory
-        
-        Args:
-            question: User's question
-            conversation_history: Session-specific conversation history (from st.session_state)
-            use_agent: Legacy parameter
-            
-        Returns:
-            Dict with 'answer' and 'updated_history'
-        """
-        start_time = time.time()
-        
-        if conversation_history is None:
-            conversation_history = []
-        
-        try:
-            # STEP 1: Detect user profile
-            profile_info = self.profile_detector.detect_profile(question)
-            
-            if profile_info:
-                profile_name = profile_info['profile']
-                custom_prof = profile_info.get('custom_profile', '')
-                
-                if profile_name == 'custom':
-                    print(f"✓ Detected custom profile: {custom_prof} ({profile_info['detected_keyword']})")
-                else:
-                    print(f"✓ Detected profile: {profile_name} ({profile_info['detected_keyword']})")
-                
-                self.metrics['profile_detected_count'] += 1
-                
-                # Get profile context
-                if profile_name == 'custom':
-                    profile_context = f"""
-USER PROFILE DETECTED: {custom_prof.UPPER()}
-Profile Context: {self.profile_detector.get_profile_context(profile_name, custom_prof)}
-
-IMPORTANT: Personalize examples for this profession while keeping the core framework intact!
-If the profession is unfamiliar, provide examples that could apply broadly to professional leadership.
-"""
-                else:
-                    profile_context = f"""
-USER PROFILE DETECTED: {profile_name.upper().replace('_', ' ')}
-Profile Context: {self.profile_detector.get_profile_context(profile_name)}
-
-IMPORTANT: Personalize examples for this profile while keeping the core framework intact!
-"""
-            else:
-                profile_context = "USER PROFILE: General professional\nProvide general examples from the context."
-            
-            # STEP 2: Retrieve relevant content
-            session_match = re.search(r'session\s+(\d+)', question.lower())
-            
-            if session_match:
-                session_num = int(session_match.group(1))
-                retrieved_docs = self.vector_store.vectorstore.similarity_search(
-                    question, k=8, filter={"session_number": session_num}
-                )
-            else:
-                retrieved_docs = self.retriever.invoke(question)
-            
-            # STEP 3: Get source reference
-            source_ref = self._get_primary_source_reference(retrieved_docs)
-            
-            # STEP 4: Format context
-            context = self._format_docs(retrieved_docs)
-            
-            # STEP 5: Generate personalized answer with conversation history
-            prompt = get_profile_aware_prompt()
-            chain = (
-                {
-                    "context": lambda _: context,
-                    "profile_context": lambda _: profile_context,
-                    "conversation_history": lambda _: self._format_conversation_history(conversation_history),
-                    "question": lambda _: question
-                }
-                | prompt
-                | self.llm
-                | StrOutputParser()
+        with col1:
+            user_input = st.text_input(
+                "Message",
+                placeholder="Ask a question...",
+                label_visibility="collapsed",
+                key="user_input"
             )
-            
-            answer = chain.invoke({})
-            
-            # STEP 6: Clean up and add source
-            patterns = [
-                r'📺?\s*Related Video Resources:.*?$',
-                r'📺?\s*For (?:more|further) details.*?$',
-                r'📚?\s*For more details.*?$',
-            ]
-            
-            for pattern in patterns:
-                answer = re.sub(pattern, '', answer, flags=re.DOTALL | re.IGNORECASE).strip()
-            
-            if source_ref:
-                answer += f"\n\n📚 {source_ref}"
-            
-            answer = re.sub(r'\n\n\n+', '\n\n', answer).strip()
-            
-            # ✅ Update conversation history (return to caller to store in session)
-            updated_history = conversation_history + [{
-                'question': question,
-                'answer': answer,
-                'timestamp': datetime.now().isoformat()
-            }]
-            
-            # Track metrics
-            latency = time.time() - start_time
-            self.metrics['query_count'] += 1
-            self.metrics['total_latency'] += latency
-            self.metrics['queries'].append({
-                'timestamp': datetime.now().isoformat(),
-                'question': question[:50] + '...',
-                'profile': profile_info['profile'] if profile_info else 'general',
-                'latency': latency
-            })
-            
-            return {
-                'answer': answer,
-                'updated_history': updated_history
-            }
-            
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return {
-                'answer': f"⚠️ Error: {str(e)}",
-                'updated_history': conversation_history
-            }
+        
+        with col2:
+            send_button = st.form_submit_button("↗️ Send", use_container_width=True)
+        
+        with col3:
+            clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
+        
+        # Process input with STREAMING
+        if send_button and user_input:
+            process_message(user_input, rag_system)
+            st.rerun()
+        
+        # Clear chat only (keep memory)
+        if clear_button:
+            st.session_state.messages = []
+            st.rerun()
     
-    def ask_stream(self, question: str, conversation_history: List[Dict] = None):
-        """
-        Stream answer with profile personalization + conversation memory
-        
-        ✅ FIXED: Now properly accepts conversation_history parameter
-        """
-        start_time = time.time()
-        
-        if conversation_history is None:
-            conversation_history = []
-        
-        try:
-            # Detect profile
-            profile_info = self.profile_detector.detect_profile(question)
+    # Footer
+    st.markdown(
+        '<div class="powered-by">Powered by OpenAI & LangChain</div>',
+        unsafe_allow_html=True
+    )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def process_message(user_input: str, rag_system):
+    """Process and display a message with streaming and session-based memory"""
+    # Add user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input
+    })
+    
+    # Display user message immediately
+    st.markdown(f"""
+    <div class="chat-message user-message">
+        <div class="message-label">👤 You</div>
+        <div class="message-content">{user_input}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Get AI response with STREAMING
+    st.markdown('<div class="chat-message assistant-message">', unsafe_allow_html=True)
+    st.markdown('<div class="message-label">🤖 Assistant</div>', unsafe_allow_html=True)
+    
+    # Streaming response container
+    response_container = st.empty()
+    full_response = ""
+    
+    try:
+        # ✅ Pass session-specific conversation history to RAG system
+        for chunk in rag_system.ask_stream(user_input, st.session_state.conversation_history):
+            # Check for history update marker
+            if chunk.startswith("__HISTORY_UPDATE__:"):
+                # History was updated, retrieve from session
+                continue
             
-            if profile_info:
-                profile_name = profile_info['profile']
-                custom_prof = profile_info.get('custom_profile', '')
-                
-                self.metrics['profile_detected_count'] += 1
-                
-                if profile_name == 'custom':
-                    profile_context = f"""
-USER PROFILE DETECTED: {custom_prof.upper()}
-Profile Context: {self.profile_detector.get_profile_context(profile_name, custom_prof)}
-IMPORTANT: Personalize examples for this profession!
-"""
-                else:
-                    profile_context = f"""
-USER PROFILE DETECTED: {profile_name.upper().replace('_', ' ')}
-Profile Context: {self.profile_detector.get_profile_context(profile_name)}
-IMPORTANT: Personalize examples for this profile!
-"""
-            else:
-                profile_context = "USER PROFILE: General professional"
-            
-            # Retrieve content
-            session_match = re.search(r'session\s+(\d+)', question.lower())
-            
-            if session_match:
-                session_num = int(session_match.group(1))
-                retrieved_docs = self.vector_store.vectorstore.similarity_search(
-                    question, k=8, filter={"session_number": session_num}
-                )
-            else:
-                retrieved_docs = self.retriever.invoke(question)
-            
-            # Get source
-            source_ref = self._get_primary_source_reference(retrieved_docs)
-            
-            # Format context
-            context = self._format_docs(retrieved_docs)
-            
-            # Stream answer with conversation history
-            prompt = get_profile_aware_prompt()
-            chain = (
-                {
-                    "context": lambda _: context,
-                    "profile_context": lambda _: profile_context,
-                    "conversation_history": lambda _: self._format_conversation_history(conversation_history),
-                    "question": lambda _: question
-                }
-                | prompt
-                | self.llm
-                | StrOutputParser()
+            full_response += chunk
+            # Update with blinking cursor while streaming
+            response_container.markdown(
+                f'<div class="message-content typing-cursor">{full_response}</div>',
+                unsafe_allow_html=True
             )
-            
-            full_answer = ""
-            for chunk in chain.stream({}):
-                if chunk:
-                    full_answer += chunk
-                    yield chunk
-            
-            if source_ref:
-                yield f"\n\n📚 {source_ref}"
-            
-            # ✅ Return updated history (caller will store in session)
-            updated_history = conversation_history + [{
-                'question': question,
-                'answer': full_answer,
-                'timestamp': datetime.now().isoformat()
-            }]
-            
-            # Yield special marker with updated history
-            yield f"__HISTORY_UPDATE__:{len(updated_history)}"
-            
-            # Track metrics
-            latency = time.time() - start_time
-            self.metrics['query_count'] += 1
-            self.metrics['total_latency'] += latency
-            self.metrics['queries'].append({
-                'timestamp': datetime.now().isoformat(),
-                'question': question[:50] + '...',
-                'profile': profile_info['profile'] if profile_info else 'general',
-                'latency': latency
-            })
-            
-        except Exception as e:
-            yield f"\n\n⚠️ Error: {str(e)}"
+        
+        # Final display without cursor
+        response_container.markdown(
+            f'<div class="message-content">{full_response}</div>',
+            unsafe_allow_html=True
+        )
+        
+        # ✅ Update session conversation history
+        st.session_state.conversation_history.append({
+            'question': user_input,
+            'answer': full_response,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        # Keep only last 10 conversations in memory
+        if len(st.session_state.conversation_history) > 10:
+            st.session_state.conversation_history = st.session_state.conversation_history[-10:]
+        
+        # Add assistant message to chat history
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": full_response
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        error_msg = f"⚠️ Sorry, I encountered an error: {str(e)}"
+        
+        response_container.markdown(
+            f'<div class="message-content">{error_msg}</div>',
+            unsafe_allow_html=True
+        )
+        
+        # Show detailed error in expander
+        with st.expander("🔍 Error Details"):
+            st.code(error_details)
+        
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": error_msg
+        })
     
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get metrics including profile detection stats"""
-        if self.metrics['query_count'] == 0:
-            return self.metrics
-        
-        avg_latency = self.metrics['total_latency'] / self.metrics['query_count']
-        profile_detection_rate = (self.metrics['profile_detected_count'] / self.metrics['query_count']) * 100
-        
-        return {
-            'total_queries': self.metrics['query_count'],
-            'profile_detected': self.metrics['profile_detected_count'],
-            'detection_rate': f"{profile_detection_rate:.1f}%",
-            'average_latency': f"{avg_latency:.2f}s",
-            'total_time': f"{self.metrics['total_latency']:.2f}s",
-            'recent_queries': self.metrics['queries'][-5:]
-        }
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ============================================================================
-# TESTING
+# MAIN
 # ============================================================================
 
 def main():
-    """Test profile-aware system"""
-    print("="*80)
-    print("🚀 PROFILE-AWARE RAG SYSTEM with SESSION MEMORY - Customized 100BM Delivery")
-    print("="*80)
-    
-    # Initialize
-    rag = ProfileAwareRAGSystem()
-    
-    # Test with different profiles
-    test_questions = [
-        "I am a doctor, how can I apply 4T principles?",
-        "As an HR leader, how do I use the capability matrix?",
-        "I'm an entrepreneur starting a business, what is 4T management?",
-        "What is the 11-point framework?",
-    ]
-    
-    print("\n📝 Testing Profile-Based Personalization...")
-    print("="*80)
-    
-    session_history = []
-    
-    for i, question in enumerate(test_questions, 1):
-        print(f"\n{i}. Question: {question}")
-        print("-" * 40)
-        
-        result = rag.ask(question, conversation_history=session_history)
-        answer = result['answer']
-        session_history = result['updated_history']
-        
-        print(f"Answer: {answer[:300]}...")
-        print("-" * 40)
-    
-    # Show metrics
-    print("\n📊 Metrics:")
-    metrics = rag.get_metrics()
-    print(f"Total Queries: {metrics['total_queries']}")
-    print(f"Profiles Detected: {metrics['profile_detected']}")
-    print(f"Detection Rate: {metrics['detection_rate']}")
-    print(f"Memory Items: {len(session_history)}")
-    
-    print("\n" + "="*80)
-    print("✅ Profile-Aware System with Session Memory Ready!")
-    print("="*80)
+    """Main application"""
+    render_chat_widget()
 
 
 if __name__ == "__main__":
