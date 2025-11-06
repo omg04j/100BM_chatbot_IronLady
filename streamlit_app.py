@@ -2,7 +2,8 @@
 🤖 Iron Lady Leadership Program - 100BM AI Assistant
 Simple Chat Widget for LMS Page with Streaming
 Embeddable chatbot interface - Real-time text generation
-✅ WITH CONVERSATION MEMORY
+✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
+✅ WITH CLEAR MEMORY BUTTON
 """
 
 import streamlit as st
@@ -48,6 +49,7 @@ except Exception as e:
     1. Check if utils.py has any self-imports (like `from utils import ...`)
     2. Make sure all dependencies are installed (langchain, openai, etc.)
     3. Check if there are any syntax errors in utils.py
+    4. Make sure .env file exists with OPENAI_API_KEY
     """)
     st.stop()
 
@@ -297,6 +299,18 @@ st.markdown(f"""
         margin-right: 0.5rem;
         font-weight: 600;
     }}
+    
+    /* ✅ Memory status display */
+    .memory-status {{
+        background: rgba(76, 175, 80, 0.05);
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: #4CAF50;
+        text-align: center;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -305,28 +319,20 @@ st.markdown(f"""
 # INITIALIZATION
 # ============================================================================
 
+@st.cache_resource
 def initialize_system():
-    """Initialize RAG system - one per session"""
-    
-    # Return existing system if already initialized for this session
-    if 'rag_system' in st.session_state:
-        return st.session_state.rag_system, None
-    
+    """Initialize RAG system (cached) - NO conversation memory stored here"""
     try:
-        # Get API key
-        api_key = st.secrets.get("OPENAI_API_KEY")
-        if not api_key:
-            api_key = os.getenv("OPENAI_API_KEY")
+        # Check for .env and API key
+        if not os.path.exists('.env'):
+            return None, "No .env file found"
         
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            return None, "OPENAI_API_KEY not found in secrets or .env"
+            return None, "OPENAI_API_KEY not found in .env file"
         
-        # Initialize the ProfileAwareRAGSystem for THIS session
+        # Initialize the ProfileAwareRAGSystem (stateless - no memory)
         rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
-        
-        # Store in session state (unique per browser tab/user)
-        st.session_state.rag_system = rag_system
-        
         return rag_system, None
         
     except FileNotFoundError as e:
@@ -336,12 +342,16 @@ def initialize_system():
 
 
 def initialize_chat():
-    """Initialize chat session state"""
+    """Initialize chat session state with SESSION-SPECIFIC memory"""
     if 'messages' not in st.session_state:
         st.session_state.messages = []
     
     if 'show_sources' not in st.session_state:
         st.session_state.show_sources = False
+    
+    # ✅ CRITICAL FIX: Session-specific conversation memory (NOT shared between users)
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
 
 
 # ============================================================================
@@ -352,7 +362,8 @@ SUGGESTED_QUESTIONS = [
     "💊 I am a doctor, how can I apply 4T principles?",
     "👥 As an HR leader, what is the capability matrix?",
     "📋 How to create a board member persona?",
-    "💻 As a tech executive, what is the success story framework?"
+    "💻 As a tech executive, what is the success story framework?",
+    "🗓️ What is my batch schedule?"
 ]
 
 
@@ -374,11 +385,11 @@ def render_suggestions():
 
 
 # ============================================================================
-# CHAT WIDGET WITH STREAMING AND MEMORY
+# CHAT WIDGET WITH STREAMING AND SESSION-BASED MEMORY
 # ============================================================================
 
 def render_chat_widget():
-    """Render compact chat widget with streaming support"""
+    """Render compact chat widget with streaming support and session-based memory"""
     
     # Initialize
     initialize_chat()
@@ -388,14 +399,12 @@ def render_chat_widget():
         st.error(f"⚠️ System not available: {error}")
         st.info("""
         **Setup Instructions:**
+        1. Create a `.env` file in your project directory
         2. Add: `OPENAI_API_KEY=your-key-here`
         3. Make sure `vector_store` folder exists
         4. Run: `python vector_store.py` to create the vector store if needed
         """)
         return
-    
-    # ✅ Check if memory is enabled
-    has_memory = hasattr(rag_system, 'conversation_history')
     
     # Header with Iron Lady logo
     logo_html = ""
@@ -412,6 +421,14 @@ def render_chat_widget():
     </div>
     """, unsafe_allow_html=True)
     
+    # ✅ Memory status indicator (if there's conversation history)
+    if len(st.session_state.conversation_history) > 0:
+        st.markdown(f"""
+        <div class="memory-status">
+            🧠 <b>Memory Active:</b> Remembering {len(st.session_state.conversation_history)} conversation(s)
+        </div>
+        """, unsafe_allow_html=True)
+    
     # Suggested questions section (only when chat is empty)
     render_suggestions()
     
@@ -423,10 +440,6 @@ def render_chat_widget():
         
         if not st.session_state.messages:
             # ✅ Welcome message with memory indicator
-            memory_badge = ""
-            if has_memory:
-                memory_badge = '<span class="memory-badge">🧠 Memory Enabled</span>'
-            
             st.markdown(f"""
             <div class="chat-message assistant-message welcome-message">
                 <div class="message-label">🤖 Assistant</div>
@@ -439,7 +452,7 @@ def render_chat_widget():
                     <span class="feature-badge">🎯 Profile-Aware</span>
                     <span class="feature-badge">📚 100BM Content</span>
                     <span class="feature-badge">⚡ Real-Time</span>
-                    {memory_badge}
+                    <span class="memory-badge">🧠 Memory Enabled</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -473,8 +486,9 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
+    # ✅ Button row with Clear Memory option
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns([7, 1.5, 1.5])
+        col1, col2, col3, col4 = st.columns([6, 1.5, 1.5, 1.5])
         
         with col1:
             user_input = st.text_input(
@@ -490,17 +504,24 @@ def render_chat_widget():
         with col3:
             clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
         
+        with col4:
+            # ✅ NEW: Clear Memory button
+            clear_memory_button = st.form_submit_button("🧠 Memory", use_container_width=True)
+        
         # Process input with STREAMING
         if send_button and user_input:
             process_message(user_input, rag_system)
             st.rerun()
         
-        # ✅ Clear chat AND memory
+        # Clear chat only (keep memory)
         if clear_button:
             st.session_state.messages = []
-            # Clear conversation memory if method exists
-            if hasattr(rag_system, 'clear_memory'):
-                rag_system.clear_memory()
+            st.rerun()
+        
+        # ✅ Clear memory only (keep chat visible but reset context)
+        if clear_memory_button:
+            st.session_state.conversation_history = []
+            st.success("🧠 Memory cleared! I won't remember previous conversations.")
             st.rerun()
     
     # Footer
@@ -513,7 +534,7 @@ def render_chat_widget():
 
 
 def process_message(user_input: str, rag_system):
-    """Process and display a message with streaming"""
+    """Process and display a message with streaming and session-based memory"""
     # Add user message
     st.session_state.messages.append({
         "role": "user",
@@ -537,8 +558,13 @@ def process_message(user_input: str, rag_system):
     full_response = ""
     
     try:
-        # Stream the response chunk by chunk using ask_stream
-        for chunk in rag_system.ask_stream(user_input):
+        # ✅ Pass session-specific conversation history to RAG system
+        for chunk in rag_system.ask_stream(user_input, st.session_state.conversation_history):
+            # Check for history update marker
+            if chunk.startswith("__HISTORY_UPDATE__:"):
+                # History was updated, retrieve from session
+                continue
+            
             full_response += chunk
             # Update with blinking cursor while streaming
             response_container.markdown(
@@ -552,7 +578,18 @@ def process_message(user_input: str, rag_system):
             unsafe_allow_html=True
         )
         
-        # Add assistant message to history
+        # ✅ Update session conversation history
+        st.session_state.conversation_history.append({
+            'question': user_input,
+            'answer': full_response,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        # Keep only last 10 conversations in memory
+        if len(st.session_state.conversation_history) > 10:
+            st.session_state.conversation_history = st.session_state.conversation_history[-10:]
+        
+        # Add assistant message to chat history
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response
@@ -590,9 +627,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
-
-
-
-
