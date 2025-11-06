@@ -480,9 +480,9 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row without Memory button
+    # ✅ Button row with Send and Clear Chat
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns([7, 1.5, 1.5])
+        col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
         
         with col1:
             user_input = st.text_input(
@@ -508,9 +508,9 @@ def render_chat_widget():
             st.session_state.messages = []
             st.rerun()
     
-    # ✅ Compact Clear Memory button below Send/Clear (matching style)
-    col_mem1, col_mem2, col_mem3 = st.columns([3.5, 2, 3.5])
-    with col_mem2:
+    # ✅ Clear Memory button below - aligned with Send and Clear Chat buttons
+    col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
+    with col_mem1:
         if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
             st.session_state.conversation_history = []
             st.rerun()
