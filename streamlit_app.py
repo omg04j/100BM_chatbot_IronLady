@@ -323,13 +323,7 @@ st.markdown(f"""
 def initialize_system():
     """Initialize RAG system (cached) - NO conversation memory stored here"""
     try:
-        # Check for .env and API key
-        if not os.path.exists('.env'):
-            return None, "No .env file found"
-        
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return None, "OPENAI_API_KEY not found in .env file"
+        api_key = st.secrets["OPENAI_API_KEY"]
         
         # Initialize the ProfileAwareRAGSystem (stateless - no memory)
         rag_system = ProfileAwareRAGSystem(vector_store_path="./vector_store")
@@ -628,3 +622,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
