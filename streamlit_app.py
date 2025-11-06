@@ -356,8 +356,7 @@ SUGGESTED_QUESTIONS = [
     "💊 I am a doctor, how can I apply 4T principles?",
     "👥 As an HR leader, what is the capability matrix?",
     "📋 How to create a board member persona?",
-    "💻 As a tech executive, what is the success story framework?",
-    "🗓️ What is my batch schedule?"
+    "💻 As a tech executive, what is the success story framework?"
 ]
 
 
@@ -619,3 +618,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
