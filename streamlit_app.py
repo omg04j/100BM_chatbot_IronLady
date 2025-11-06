@@ -415,13 +415,6 @@ def render_chat_widget():
     </div>
     """, unsafe_allow_html=True)
     
-    # ✅ Small Clear Memory button in corner (outside header)
-    col1, col2 = st.columns([5, 1])
-    with col2:
-        if st.button("🧠 Clear", key="clear_memory_btn", help="Clear memory"):
-            st.session_state.conversation_history = []
-            st.rerun()
-    
     # ✅ Memory status indicator (if there's conversation history)
     if len(st.session_state.conversation_history) > 0:
         st.markdown(f"""
@@ -487,7 +480,7 @@ def render_chat_widget():
     # Input form with enhanced buttons
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row without Memory button (moved to header)
+    # ✅ Button row without Memory button
     with st.form(key="chat_form", clear_on_submit=True):
         col1, col2, col3 = st.columns([7, 1.5, 1.5])
         
@@ -513,6 +506,13 @@ def render_chat_widget():
         # Clear chat only (keep memory)
         if clear_button:
             st.session_state.messages = []
+            st.rerun()
+    
+    # ✅ Compact Clear Memory button below Send/Clear (matching style)
+    col_mem1, col_mem2, col_mem3 = st.columns([3.5, 2, 3.5])
+    with col_mem2:
+        if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
+            st.session_state.conversation_history = []
             st.rerun()
     
     # Footer
