@@ -336,7 +336,8 @@ class VectorStoreCreator:
         # Setup embeddings
         if embedding_model == "openai":
             self.embeddings = OpenAIEmbeddings(
-                openai_api_key=st.secrets.get("OPENAI_API_KEY")
+                model="text-embedding-3-large",
+                openai_api_key = st.secrets["OPENAI_API_KEY"]
             )
         else:
             raise ValueError("Only OpenAI embeddings supported for best performance")
@@ -434,7 +435,7 @@ class VectorStoreCreator:
         print(f"\n🔧 Creating vector store...")
         print(f"   Location: {self.vector_store_path}")
         print(f"   Chunks: {len(chunks)}")
-        print(f"   Embedding: OpenAI")
+        print(f"   Embedding: OpenAI text-embedding-3-large (3072 dimensions)")
         
         # Create vector store
         vector_store = Chroma.from_documents(
@@ -487,7 +488,7 @@ class VectorStoreCreator:
         print("   • Facilitator extraction")
         print("   • Category tagging")
         print("   • Optimized chunking")
-        print("   • OpenAI embeddings (best for RAG)")
+        print("   • OpenAI text-embedding-3-large (3072 dimensions - Best accuracy)")
         print("="*80)
         
         # Pipeline
@@ -529,7 +530,8 @@ class VectorStoreLoader:
     def __init__(self, vector_store_path: str = "./vector_store"):
         self.vector_store_path = vector_store_path
         self.embeddings = OpenAIEmbeddings(
-            openai_api_key=st.secrets.get("OPENAI_API_KEY")
+            model="text-embedding-3-large",
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
         )
         self.vector_store = None
     
@@ -591,6 +593,7 @@ class VectorStoreLoader:
 # ============================================================================
 
 def main():
+    """Main execution"""
     
     # Create vector store
     creator = VectorStoreCreator(
@@ -603,8 +606,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
-
-
-
