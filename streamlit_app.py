@@ -1,9 +1,4 @@
-🤖 Iron Lady Leadership Program - 100BM AI Assistant
-Simple Chat Widget for LMS Page with Streaming
-Embeddable chatbot interface - Real-time text generation
-✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
-✅ WITH CLEAR MEMORY BUTTON (in header corner)
-"""
+
 
 import streamlit as st
 from typing import List, Dict, Any
@@ -627,3 +622,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
