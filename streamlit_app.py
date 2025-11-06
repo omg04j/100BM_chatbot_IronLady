@@ -1,6 +1,3 @@
-[file name]: app.py
-[file content begin]
-"""
 🤖 Iron Lady Leadership Program - 100BM AI Assistant
 Simple Chat Widget for LMS Page with Streaming
 Embeddable chatbot interface - Real-time text generation
@@ -635,3 +632,4 @@ def main():
 if __name__ == "__main__":
     main()
 [file content end]
+
