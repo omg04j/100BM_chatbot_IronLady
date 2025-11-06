@@ -10,14 +10,12 @@ Features:
 - ✅ NEW: Remembers conversation history for follow-up questions
 - ✅ FIXED: Session-specific memory (not shared between users)
 """
-
+import streamlit as st
 import os
 import re
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import time
-
-from dotenv import load_dotenv
 
 # LangChain Core
 from langchain_core.prompts import ChatPromptTemplate
@@ -29,9 +27,6 @@ from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from langchain_chroma import Chroma
-
-
-load_dotenv()
 
 
 # ============================================================================
@@ -362,7 +357,7 @@ class LLMFactory:
             model=model,
             temperature=temperature,
             streaming=streaming,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
         )
 
 
@@ -375,7 +370,7 @@ class VectorStoreLoader:
     
     def __init__(self, persist_directory: str = "./vector_store"):
         self.persist_directory = persist_directory
-        self.embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
+        self.embeddings = OpenAIEmbeddings(openai_api_key = st.secrets["OPENAI_API_KEY"])
         self.vectorstore = None
     
     def load(self):
@@ -786,3 +781,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
