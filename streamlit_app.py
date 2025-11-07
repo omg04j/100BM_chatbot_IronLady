@@ -4,6 +4,7 @@ Simple Chat Widget for LMS Page with Streaming
 Embeddable chatbot interface - Real-time text generation
 ✅ WITH SESSION-BASED CONVERSATION MEMORY (Fixed - no sharing between users)
 ✅ WITH CLEAR MEMORY BUTTON (in header corner)
+✅ RESPONSIVE LAYOUT - Perfect on both mobile and desktop
 """
 
 import streamlit as st
@@ -67,7 +68,7 @@ def get_logo_base64():
 
 logo_b64 = get_logo_base64()
 
-# Compact CSS for embedded widget with RED theme
+# Compact CSS for embedded widget with RED theme and RESPONSIVE DESIGN
 st.markdown(f"""
 <style>
     /* Hide Streamlit default elements */
@@ -210,6 +211,47 @@ st.markdown(f"""
         padding-bottom: 1rem;
     }}
     
+    /* ========================================
+       RESPONSIVE DESKTOP LAYOUT IMPROVEMENTS
+       ======================================== */
+    
+    /* Desktop: Horizontal button layout */
+    @media (min-width: 768px) {{
+        .desktop-button-row {{
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.75rem;
+        }}
+        
+        /* Make Clear Memory button horizontal on desktop */
+        .desktop-button-row .stButton {{
+            flex: 0 0 auto;
+        }}
+        
+        .desktop-button-row .stButton:first-child {{
+            flex: 0 0 auto;
+            min-width: 120px;
+        }}
+        
+        /* Adjust column layout for desktop */
+        [data-testid="column"] {{
+            padding: 0 0.25rem !important;
+        }}
+    }}
+    
+    /* Mobile: Keep vertical layout (default) */
+    @media (max-width: 767px) {{
+        .desktop-button-row {{
+            display: block;
+        }}
+        
+        .desktop-button-row .stButton {{
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }}
+    }}
+    
     /* Compact form styling */
     .stTextInput > div > div > input {{
         border-radius: 20px;
@@ -232,6 +274,7 @@ st.markdown(f"""
         font-size: 0.9rem;
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(220, 20, 60, 0.3);
+        width: 100%;
     }}
     
     .stButton > button:hover {{
@@ -323,6 +366,7 @@ st.markdown(f"""
 def initialize_system():
     """Initialize RAG system (cached) - NO conversation memory stored here"""
     try:
+        # Get API key from environment variable
         api_key = st.secrets["OPENAI_API_KEY"]
         
         # Initialize the ProfileAwareRAGSystem (stateless - no memory)
@@ -356,7 +400,8 @@ SUGGESTED_QUESTIONS = [
     "💊 I am a doctor, how can I apply 4T principles?",
     "👥 As an HR leader, what is the capability matrix?",
     "📋 How to create a board member persona?",
-    "💻 As a tech executive, what is the success story framework?"
+    "💻 As a tech executive, what is the success story framework?",
+    "🗓️ what is my batch schedule?"
 ]
 
 
@@ -476,26 +521,39 @@ def render_chat_widget():
         process_message(user_input, rag_system)
         st.rerun()
     
-    # Input form with enhanced buttons
+    # ============================================================================
+    # IMPROVED INPUT SECTION WITH RESPONSIVE BUTTON LAYOUT
+    # ============================================================================
+    
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
     
-    # ✅ Button row with Send and Clear Chat
+    # Input form with enhanced responsive buttons
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns([6.5, 1.5, 1.5])
+        # Text input (full width)
+        user_input = st.text_input(
+            "Message",
+            placeholder="Ask a question...",
+            label_visibility="collapsed",
+            key="user_input"
+        )
+        
+        # ✅ IMPROVED RESPONSIVE BUTTON LAYOUT
+        # Desktop: Horizontal row | Mobile: Vertical stack
+        st.markdown('<div class="desktop-button-row">', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
         
         with col1:
-            user_input = st.text_input(
-                "Message",
-                placeholder="Ask a question...",
-                label_visibility="collapsed",
-                key="user_input"
-            )
-        
-        with col2:
             send_button = st.form_submit_button("↗️ Send", use_container_width=True)
         
-        with col3:
+        with col2:
             clear_button = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+        
+        with col3:
+            # Clear Memory button inside form for better alignment
+            clear_memory_button = st.form_submit_button("🧠 Clear Memory", use_container_width=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # Process input with STREAMING
         if send_button and user_input:
@@ -506,11 +564,9 @@ def render_chat_widget():
         if clear_button:
             st.session_state.messages = []
             st.rerun()
-    
-    # ✅ Clear Memory button below - aligned with Send and Clear Chat buttons
-    col_empty1, col_mem1, col_mem2, col_empty2 = st.columns([6.5, 1.5, 1.5, 0.01])
-    with col_mem1:
-        if st.button("🧠 Clear Memory", key="clear_memory_btn", use_container_width=True):
+        
+        # Clear memory
+        if clear_memory_button:
             st.session_state.conversation_history = []
             st.rerun()
     
@@ -618,6 +674,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
