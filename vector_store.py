@@ -10,7 +10,7 @@ PRODUCTION-READY Vector Store for Iron Lady Leadership Program
 Author: Optimized for 100BM RAG System
 Date: November 2025
 """
-
+import streamlit as st
 import os
 import re
 import time
@@ -18,7 +18,6 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 from datetime import datetime
 
-from dotenv import load_dotenv
 from langchain_community.document_loaders import (
     UnstructuredWordDocumentLoader,  # Better table handling than Docx2txt
     UnstructuredMarkdownLoader,
@@ -29,7 +28,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-load_dotenv()
 
 
 # ============================================================================
@@ -444,7 +442,7 @@ class VectorStoreCreator:
         if embedding_model == "openai":
             self.embeddings = OpenAIEmbeddings(
                 model="text-embedding-3-large", 
-                openai_api_key=os.getenv("OPENAI_API_KEY")
+                openai_api_key = st.secrets["OPENAI_API_KEY"]
             )
         else:
             raise ValueError("Only OpenAI embeddings supported")
@@ -677,12 +675,6 @@ class VectorStoreCreator:
         print("   ✅ OpenAI embeddings (best quality)")
         print("="*80)
         
-        # Check API key
-        if not os.getenv("OPENAI_API_KEY"):
-            print("\n❌ OPENAI_API_KEY not found in environment!")
-            print("\n💡 Create .env file with:")
-            print("   OPENAI_API_KEY=sk-your-key-here")
-            return
         
         # Pipeline
         files = self.discover_files()
@@ -719,7 +711,7 @@ class VectorStoreLoader:
         self.vector_store_path = vector_store_path
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-large",
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
         )
         self.vector_store = None
     
@@ -770,3 +762,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
