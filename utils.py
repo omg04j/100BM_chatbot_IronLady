@@ -357,7 +357,7 @@ class LLMFactory:
             model=model,
             temperature=0.2,
             streaming=True,
-            openai_api_key = st.secrets["OPENAI_API_KEY"]
+            openai_api_key=st.secrets["OPENAI_API_KEY"]
         )
 
 
@@ -372,7 +372,7 @@ class VectorStoreLoader:
         self.persist_directory = persist_directory
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-large",
-            openai_api_key = st.secrets["OPENAI_API_KEY"]
+            openai_api_key=st.secrets["OPENAI_API_KEY"]
         )
         self.vectorstore = None
     
@@ -430,6 +430,16 @@ class ProfileAwareRAGSystem:
         print("✓ Profile-Aware RAG System Ready!")
         print("✓ Supports: doctor, HR, entrepreneur, executive, and more!")
         print("✓ Conversation memory enabled (session-based)!")
+    
+    def _is_asking_for_references(self, question: str) -> bool:
+        """Check if user is explicitly asking for sources/references"""
+        question_lower = question.lower()
+        reference_keywords = [
+            'source', 'reference', 'where can i find', 'where is this from',
+            'which session', 'what video', 'where to learn more', 'more details',
+            'show source', 'cite', 'citation', 'what document', 'which document'
+        ]
+        return any(keyword in question_lower for keyword in reference_keywords)
     
     def _format_conversation_history(self, conversation_history: List[Dict]) -> str:
         """✅ Format conversation history for context"""
@@ -572,7 +582,7 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
             
             answer = chain.invoke({})
             
-            # STEP 6: Clean up and add source
+            # STEP 6: Clean up and add source ONLY if user is asking for it
             patterns = [
                 r'📺?\s*Related Video Resources:.*?$',
                 r'📺?\s*For (?:more|further) details.*?$',
@@ -582,7 +592,8 @@ IMPORTANT: Personalize examples for this profile while keeping the core framewor
             for pattern in patterns:
                 answer = re.sub(pattern, '', answer, flags=re.DOTALL | re.IGNORECASE).strip()
             
-            if source_ref:
+            # ✅ NEW: Only add reference if user explicitly asks for it
+            if self._is_asking_for_references(question) and source_ref:
                 answer += f"\n\n📚 {source_ref}"
             
             answer = re.sub(r'\n\n\n+', '\n\n', answer).strip()
@@ -691,7 +702,8 @@ IMPORTANT: Personalize examples for this profile!
                     full_answer += chunk
                     yield chunk
             
-            if source_ref:
+            # ✅ NEW: Only add reference if user explicitly asks for it
+            if self._is_asking_for_references(question) and source_ref:
                 yield f"\n\n📚 {source_ref}"
             
             # ✅ Return updated history (caller will store in session)
@@ -788,5 +800,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
